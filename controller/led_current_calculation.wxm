@@ -1,0 +1,15 @@
+/* [wxMaxima batch file version 1] [ DO NOT EDIT BY HAND! ]*/
+/* [ Created with wxMaxima version 12.04.0 ] */
+
+/* [wxMaxima: input   start ] */
+datasheet_formula: i_out = ((1.26 * vg) / r_ext)  * 15.0 * 3.0**(cm - 1);
+resistor_formula:  solve(datasheet_formula, r_ext)[1];
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+subst([cm=1, vg=127/128, r_ext=360], datasheet_formula);
+subst([cm=1, vg=127/128, i_out=0.052], resistor_formula);
+/* [wxMaxima: input   end   ] */
+
+/* Maxima can't load/batch files which end with a comment! */
+"Created with wxMaxima"$
