@@ -17,8 +17,8 @@
    inkscape:version="0.48.3.1 r9886"
    sodipodi:docname="ledBoardPlan.svg"
    inkscape:export-filename="/home/jonathan/Desktop/ledStripboardPlan.png"
-   inkscape:export-xdpi="300.04489"
-   inkscape:export-ydpi="300.04489">
+   inkscape:export-xdpi="173.57011"
+   inkscape:export-ydpi="173.57011">
   <defs
      id="defs4">
     <clipPath
@@ -40,18 +40,18 @@
      borderopacity="1.0"
      inkscape:pageopacity="1"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.0597222"
+     inkscape:zoom="1.0375"
      inkscape:cx="63"
      inkscape:cy="360"
      inkscape:document-units="in"
-     inkscape:current-layer="layer5"
+     inkscape:current-layer="layer9"
      showgrid="true"
      units="in"
      inkscape:snap-center="true"
      inkscape:window-width="1676"
-     inkscape:window-height="1014"
+     inkscape:window-height="998"
      inkscape:window-x="0"
-     inkscape:window-y="16"
+     inkscape:window-y="32"
      inkscape:window-maximized="0"
      inkscape:snap-global="true"
      inkscape:snap-bbox="true"
@@ -88,8 +88,7 @@
      inkscape:groupmode="layer"
      id="layer9"
      inkscape:label="Board"
-     transform="translate(0,1.347229e-5)"
-     sodipodi:insensitive="true">
+     transform="translate(0,1.347229e-5)">
     <rect
        style="opacity:0.57859533;fill:#ffffff;fill-opacity:1;stroke:#2e3436;stroke-width:0.89999998;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
        id="rect18297"
@@ -127,7 +126,75 @@
          id="tspan18317"
          y="-186.50598"
          x="359.87222"
-         sodipodi:role="line">LED Strip Board Layout</tspan></text>
+         sodipodi:role="line">Chainable 40 LED Strip</tspan></text>
+    <text
+       transform="matrix(0,1,-1,0,0,0)"
+       sodipodi:linespacing="125%"
+       id="text18383"
+       y="17.411087"
+       x="286.88632"
+       style="font-size:30px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#888a85;fill-opacity:1;stroke:none;font-family:Myriad Pro;-inkscape-font-specification:Myriad Pro"
+       xml:space="preserve"><tspan
+         style="font-size:10px;text-align:start;text-anchor:start;fill:#888a85"
+         y="17.411087"
+         x="286.88632"
+         sodipodi:role="line"
+         id="tspan18403">8&quot;x1.4&quot; Strip Board (79x13 holes)</tspan><tspan
+         style="font-size:10px;text-align:start;text-anchor:start;fill:#888a85"
+         y="29.911087"
+         x="286.88632"
+         sodipodi:role="line"
+         id="tspan18450">5x 16-pin DIP Socket</tspan><tspan
+         style="font-size:10px;text-align:start;text-anchor:start;fill:#888a85"
+         y="42.411087"
+         x="286.88632"
+         sodipodi:role="line"
+         id="tspan18407">5x TLC5916 Shift Register</tspan><tspan
+         style="font-size:10px;text-align:start;text-anchor:start;fill:#888a85"
+         y="54.911087"
+         x="286.88632"
+         sodipodi:role="line"
+         id="tspan18409">40x Ultraviolet LED</tspan><tspan
+         style="font-size:10px;text-align:start;text-anchor:start;fill:#888a85"
+         y="67.411087"
+         x="286.88632"
+         sodipodi:role="line"
+         id="tspan18438">5x 1k Resistors</tspan><tspan
+         style="font-size:10px;text-align:start;text-anchor:start;fill:#888a85"
+         y="79.911087"
+         x="286.88632"
+         sodipodi:role="line"
+         id="tspan18434">36x Jumper Wires</tspan><tspan
+         style="font-size:10px;text-align:start;text-anchor:start;fill:#888a85"
+         y="92.411087"
+         x="286.88632"
+         sodipodi:role="line"
+         id="tspan18413">81x Cut Tracks</tspan><tspan
+         style="font-size:10px;text-align:start;text-anchor:start;fill:#888a85"
+         y="104.91109"
+         x="286.88632"
+         sodipodi:role="line"
+         id="tspan18444">1x 100uF Capacitor</tspan><tspan
+         style="font-size:10px;text-align:start;text-anchor:start;fill:#888a85"
+         y="117.41109"
+         x="286.88632"
+         sodipodi:role="line"
+         id="tspan18446">1x 10uF Capacitor</tspan><tspan
+         style="font-size:10px;text-align:start;text-anchor:start;fill:#888a85"
+         y="129.91109"
+         x="286.88632"
+         sodipodi:role="line"
+         id="tspan18417">1x 7-Pin Right-angle Header Socket</tspan><tspan
+         style="font-size:10px;text-align:start;text-anchor:start;fill:#888a85"
+         y="142.41109"
+         x="286.88632"
+         sodipodi:role="line"
+         id="tspan18421">1x 7-Pin Right-angle Header Pin</tspan><tspan
+         style="font-size:10px;text-align:start;text-anchor:start;fill:#888a85"
+         y="154.91109"
+         x="286.88632"
+         sodipodi:role="line"
+         id="tspan18471">260x Solder Joins, (Total)</tspan></text>
   </g>
   <g
      inkscape:label="Strips"
@@ -259,7 +326,7 @@
        sodipodi:cy="9"
        sodipodi:rx="9"
        sodipodi:ry="9"
-       d="m 18,9 c 0,4.970563 -4.029437,9 -9,9 C 4.0294373,18 0,13.970563 0,9 0,4.0294373 4.0294373,0 9,0 c 4.970563,0 9,4.0294373 9,9 z"
+       d="M 18,9 A 9,9 0 1 1 0,9 9,9 0 1 1 18,9 z"
        transform="matrix(0.12498243,0,0,0.12499118,7.8751581,-10.124842)"
        inkscape:tile-cx="9"
        inkscape:tile-cy="8.9999998"
@@ -10541,7 +10608,8 @@
      inkscape:groupmode="layer"
      id="layer5"
      inkscape:label="Strip Cuts"
-     transform="translate(0,9.0000135)">
+     transform="translate(0,9.0000135)"
+     sodipodi:insensitive="true">
     <g
        id="g17735"
        style="fill:#c4a000">
@@ -11967,12 +12035,11 @@
      inkscape:groupmode="layer"
      id="layer8"
      inkscape:label="Connectors"
-     transform="translate(0,1.347229e-5)"
-     sodipodi:insensitive="true">
+     transform="translate(0,1.347229e-5)">
     <g
        id="g18209">
       <path
-         style="fill:none;stroke:#888a85;stroke-width:1px;stroke-linecap:round;stroke-linejoin:miter;stroke-opacity:1;display:inline"
+         style="fill:none;stroke:#888a85;stroke-width:2.25;stroke-linecap:round;stroke-linejoin:miter;stroke-opacity:1;display:inline;stroke-miterlimit:4;stroke-dasharray:none"
          d="m 80.5,-26.854433 0,35.8544368"
          id="path16855-3-1"
          inkscape:connector-curvature="0" />
@@ -11980,19 +12047,19 @@
          inkscape:connector-curvature="0"
          id="path17015-2-9"
          d="M 72,-26.854433 72,9.0000038"
-         style="fill:none;stroke:#888a85;stroke-width:1px;stroke-linecap:round;stroke-linejoin:miter;stroke-opacity:1;display:inline" />
+         style="fill:none;stroke:#888a85;stroke-width:2.25;stroke-linecap:round;stroke-linejoin:miter;stroke-opacity:1;display:inline;stroke-miterlimit:4;stroke-dasharray:none" />
       <path
          inkscape:connector-curvature="0"
          id="path17043-5-6"
          d="m 108,-26.854433 0,35.8544368"
-         style="fill:none;stroke:#888a85;stroke-width:1px;stroke-linecap:round;stroke-linejoin:miter;stroke-opacity:1;display:inline" />
+         style="fill:none;stroke:#888a85;stroke-width:2.25;stroke-linecap:round;stroke-linejoin:miter;stroke-opacity:1;display:inline;stroke-miterlimit:4;stroke-dasharray:none" />
       <path
-         style="fill:none;stroke:#888a85;stroke-width:1px;stroke-linecap:round;stroke-linejoin:miter;stroke-opacity:1;display:inline"
+         style="fill:none;stroke:#888a85;stroke-width:2.25;stroke-linecap:round;stroke-linejoin:miter;stroke-opacity:1;display:inline;stroke-miterlimit:4;stroke-dasharray:none"
          d="M 99,-26.854433 99,9.0000038"
          id="path17053-6-7"
          inkscape:connector-curvature="0" />
       <path
-         style="fill:none;stroke:#888a85;stroke-width:1px;stroke-linecap:round;stroke-linejoin:miter;stroke-opacity:1;display:inline"
+         style="fill:none;stroke:#888a85;stroke-width:2.25;stroke-linecap:round;stroke-linejoin:miter;stroke-opacity:1;display:inline;stroke-miterlimit:4;stroke-dasharray:none"
          d="M 63,-26.854433 63,9.0000038"
          id="path17075-5-2"
          inkscape:connector-curvature="0" />
@@ -12000,12 +12067,12 @@
          inkscape:connector-curvature="0"
          id="path17121-0-8"
          d="M 90,-26.854433 90,9.0000038"
-         style="fill:none;stroke:#888a85;stroke-width:1px;stroke-linecap:round;stroke-linejoin:miter;stroke-opacity:1;display:inline" />
+         style="fill:none;stroke:#888a85;stroke-width:2.25;stroke-linecap:round;stroke-linejoin:miter;stroke-opacity:1;display:inline;stroke-miterlimit:4;stroke-dasharray:none" />
       <path
          inkscape:connector-curvature="0"
          id="path17209-1-6"
          d="m 117,-26.854433 0,35.8544368"
-         style="fill:none;stroke:#888a85;stroke-width:1px;stroke-linecap:round;stroke-linejoin:miter;stroke-opacity:1;display:inline" />
+         style="fill:none;stroke:#888a85;stroke-width:2.25;stroke-linecap:round;stroke-linejoin:miter;stroke-opacity:1;display:inline;stroke-miterlimit:4;stroke-dasharray:none" />
     </g>
     <g
        id="g17958"
