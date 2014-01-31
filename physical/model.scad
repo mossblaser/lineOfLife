@@ -14,13 +14,17 @@ DOWEL_DIAMETER = 9;
 DOWEL_RADIUS   = DOWEL_DIAMETER/2;
 
 // Sizes of holes for dowel rods in various situations
-DOWEL_PRINTED_SOCKET_RADIUS= DOWEL_RADIUS + 0.5;
-DOWEL_CUT_HOLE_RADIUS= DOWEL_RADIUS * 2;
+DOWEL_PRINTED_SOCKET_RADIUS= DOWEL_RADIUS + 0.3;
+DOWEL_CUT_HOLE_RADIUS= DOWEL_RADIUS * 3;
 
 // Thickness of a block into which a dowel rod inserted should be
 DOWEL_PRINTED_SOCKET_BLOCK = DOWEL_PRINTED_SOCKET_RADIUS * 3;
 // Depth of a socket to accept the dowel rod
 DOWEL_PRINTED_SOCKET_DEPTH = DOWEL_PRINTED_SOCKET_RADIUS * 2.5;
+
+// As above but for load-bearing joints
+DOWEL_PRINTED_SOCKET_BLOCK_LOADED = DOWEL_PRINTED_SOCKET_RADIUS * 4;
+DOWEL_PRINTED_SOCKET_DEPTH_LOADED = DOWEL_PRINTED_SOCKET_RADIUS * 4;
 
 // Maximum 3D printable size
 MAX_3D_PRINT_DIMENSION = 90;
@@ -43,8 +47,8 @@ DISPLAY_GRIP_LEDGE = 5;
 DISPLAY_GRIP_THICKNESS = 5;
 
 // Bearing dimensions
-BEARING_INNER_RADIUS = 17/2; // Inner radius
-BEARING_OUTER_RADIUS = 35/2; // Outer radius
+BEARING_INNER_RADIUS = 18/2; // Inner radius
+BEARING_OUTER_RADIUS = 34/2; // Outer radius
 BEARING_THICKNESS    = 10;   // Ring thickness
 BEARING_INNER_LIP    = 2;    // Size of the edge of the inner ring
 BEARING_OUTER_LIP    = 5;    // Size of the fixed outer ring
@@ -60,7 +64,9 @@ DISPLAY_BASE_SPOKES = 6;
 // Number of spokes at the top of the display
 DISPLAY_TOP_SPOKES = 3;
 
-
+// Seperation between the two rods which run down the side of the system
+// attached to the electronics.
+DOUBLE_SHAFT_SEP = 33; // Approximately the width of circuit board (1.4")
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -111,7 +117,10 @@ module display() {
 
 
 // A part which sits on the end of a spoke and grips the display
-module display_grip(angle) {
+module display_grip( angle
+                   , DOWEL_PRINTED_SOCKET_BLOCK = DOWEL_PRINTED_SOCKET_BLOCK
+                   , DOWEL_PRINTED_SOCKET_DEPTH = DOWEL_PRINTED_SOCKET_DEPTH
+                   ) {
 	// A wedge the width of the ledge which should be as big as can be 3D
 	// printed (cosine rule)
 	wedge_angle = acos( (2*pow(DISPLAY_RADIUS+DISPLAY_GRIP_LEDGE,2) - pow(MAX_3D_PRINT_DIMENSION,2))
@@ -174,15 +183,16 @@ module display_grip(angle) {
 }
 
 
-
-
 // An axel with an arbitary number of spokes, a shaft and an inner-bearing
 // fitting with motor key.
 //
 // The center of the spoke holes are at BEARING_THICKNESS +
 // DISPLAY_GRIP_THICKNESS +
 // DOWEL_PRINTED_SOCKET_BLOCK/2.
-module axel(num_spokes, keyed = false) {
+module axel( num_spokes
+           , keyed = false
+           , DOWEL_PRINTED_SOCKET_BLOCK = DOWEL_PRINTED_SOCKET_BLOCK
+           , DOWEL_PRINTED_SOCKET_DEPTH = DOWEL_PRINTED_SOCKET_DEPTH) {
 	// Work out the minimum radius of the inside of the axel which will fit the
 	// specified number of spokes. (Cosine rule rearranged)
 	min_inner_radius = sqrt(pow(DOWEL_PRINTED_SOCKET_BLOCK,2) / (2*(1 - cos(360/num_spokes))));
@@ -261,11 +271,14 @@ module axel(num_spokes, keyed = false) {
 	}
 }
 
-
 // Display with grips and axels.
 module display_assembly() {
 	// Bottom Axel with shaft
-	axel(DISPLAY_BASE_SPOKES, keyed = true);
+	axel( DISPLAY_BASE_SPOKES
+	    , keyed = true
+	    , DOWEL_PRINTED_SOCKET_BLOCK = DOWEL_PRINTED_SOCKET_BLOCK_LOADED
+	    , DOWEL_PRINTED_SOCKET_DEPTH = DOWEL_PRINTED_SOCKET_DEPTH_LOADED
+	    );
 	
 	translate([0,0,BEARING_THICKNESS + DISPLAY_GRIP_THICKNESS]) { 
 		// Cylinder Itself
@@ -274,7 +287,10 @@ module display_assembly() {
 		
 		// Base Support
 		for (i = [0:DISPLAY_BASE_SPOKES-1])
-			display_grip(i*(360/DISPLAY_BASE_SPOKES));
+			display_grip( i*(360/DISPLAY_BASE_SPOKES)
+			            , DOWEL_PRINTED_SOCKET_BLOCK = DOWEL_PRINTED_SOCKET_BLOCK_LOADED
+			            , DOWEL_PRINTED_SOCKET_DEPTH = DOWEL_PRINTED_SOCKET_DEPTH_LOADED
+			            );
 		
 		// Top Support
 		translate([0,0, DISPLAY_HEIGHT + 2*DISPLAY_GRIP_THICKNESS]) {
@@ -286,6 +302,73 @@ module display_assembly() {
 			translate([0,0,BEARING_THICKNESS + DISPLAY_GRIP_THICKNESS])
 				rotate([180,0,0])
 					axel(DISPLAY_TOP_SPOKES);
+		}
+	}
+}
+
+
+
+// An axel-like item which supports the outside of the top bearing and connects
+// to the outer frame.
+module top_bearing_grip(num_spokes = 3) {
+	// Work out the minimum radius of the inside of the axel which will fit the
+	// specified number of spokes. (Cosine rule rearranged)
+	min_inner_radius = sqrt(pow(DOWEL_PRINTED_SOCKET_BLOCK,2) / (2*(1 - cos(360/num_spokes))));
+	
+	inner_radius = max(min_inner_radius, BEARING_OUTER_RADIUS + DISPLAY_GRIP_THICKNESS + BEARING_PRINT_SLACK);
+	
+	// Position of the end of rods within the axel
+	rod_inner_radius = inner_radius * cos((360/num_spokes)/2);
+	
+	color(COLOUR_3D_PRINTED) {
+		// The axel
+		translate([0,0,BEARING_THICKNESS + DISPLAY_GRIP_THICKNESS])
+		difference() {
+			union() {
+				// Central cylinder
+				cylinder( r = inner_radius
+				        , h = DOWEL_PRINTED_SOCKET_BLOCK
+				        );
+				// Blocks for the spokes
+				for (i = [0:num_spokes-1]) {
+					rotate([0,0,i*(360/num_spokes)])
+						translate([rod_inner_radius,-DOWEL_PRINTED_SOCKET_BLOCK/2,0])
+							cube([ DOWEL_PRINTED_SOCKET_DEPTH
+							     , DOWEL_PRINTED_SOCKET_BLOCK
+							     , DOWEL_PRINTED_SOCKET_BLOCK
+							     ]);
+				}
+			}
+			
+			// Drill out the holes for the spokes
+			for (i = [0:num_spokes-1]) {
+				rotate([0, 0, i*(360/num_spokes)])
+					translate([rod_inner_radius, 0, DOWEL_PRINTED_SOCKET_BLOCK/2])
+						rotate([0, 90, 0])
+							cylinder( h = DOWEL_PRINTED_SOCKET_DEPTH+1
+							        , r = DOWEL_PRINTED_SOCKET_RADIUS
+							        );
+			}
+		}
+		
+		// The grip for the bearing
+		difference() {
+			// Outer cylinder
+			cylinder( r = inner_radius
+			        , h = BEARING_THICKNESS + DISPLAY_GRIP_THICKNESS
+			        );
+			
+			// Drill out the bearing grip
+			translate([0,0,-1])
+			cylinder( r = BEARING_OUTER_RADIUS + BEARING_PRINT_SLACK
+			        , h = BEARING_THICKNESS+1
+			        );
+			
+			// Drill out the lip
+			translate([0,0,-1])
+			cylinder( r = BEARING_OUTER_RADIUS - BEARING_OUTER_LIP + BEARING_PRINT_SLACK
+			        , h = BEARING_THICKNESS+DISPLAY_GRIP_THICKNESS+1
+			        );
 		}
 	}
 }
@@ -343,6 +426,35 @@ module terminal_bracket() {
 }
 
 
+// A 3-spoked bracket which also terminates a long double vertial shaft
+module double_terminal_bracket() {
+	color(COLOUR_3D_PRINTED)
+	difference() {
+		union() {
+			bracket();
+			
+			// Extension wings
+			hull() {
+				for (offset = [-DOUBLE_SHAFT_SEP/2,DOUBLE_SHAFT_SEP/2]) {
+					translate([0,offset,0])
+					cylinder( r = DOWEL_PRINTED_SOCKET_BLOCK/2
+					        , h = DOWEL_PRINTED_SOCKET_BLOCK
+					        );
+				}
+			}
+		}
+		
+		// Drill out Shafts
+		for (offset = [-DOUBLE_SHAFT_SEP/2,DOUBLE_SHAFT_SEP/2]) {
+			translate([0,offset,DOWEL_PRINTED_SOCKET_BLOCK-DOWEL_PRINTED_SOCKET_DEPTH])
+			cylinder( r = DOWEL_PRINTED_SOCKET_RADIUS
+			        , h = DOWEL_PRINTED_SOCKET_DEPTH+1
+			        );
+		}
+	}
+}
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Printable Parts (for STL Export)
@@ -357,9 +469,13 @@ module print_top_axel() {
 
 // Bottom Axel
 module print_base_axel() {
-	translate([0,0,(BEARING_THICKNESS + DISPLAY_GRIP_THICKNESS + DOWEL_PRINTED_SOCKET_BLOCK)])
+	translate([0,0,(BEARING_THICKNESS + DISPLAY_GRIP_THICKNESS + DOWEL_PRINTED_SOCKET_BLOCK_LOADED)])
 	rotate([180,0,0])
-	axel(DISPLAY_BASE_SPOKES, keyed = true);
+	axel( DISPLAY_BASE_SPOKES
+	    , keyed = true
+	    , DOWEL_PRINTED_SOCKET_BLOCK = DOWEL_PRINTED_SOCKET_BLOCK_LOADED
+	    , DOWEL_PRINTED_SOCKET_DEPTH = DOWEL_PRINTED_SOCKET_DEPTH_LOADED
+	    );
 }
 
 
@@ -369,15 +485,17 @@ module print_base_axel() {
 
 //display_assembly();
 
-//// Top Axel
 //translate([0,0,-(BEARING_THICKNESS + DISPLAY_GRIP_THICKNESS)])
 //rotate([0,0,60])
-//axel(6);
+//top_bearing_grip(3);
 //for (a = [0:2]) {
 //	rotate([0,0,a*(360/3)])
 //		translate([-100,0,0])
-//			terminal_bracket();
+//			if (a == 0)
+//				double_terminal_bracket();
+//			else
+//				terminal_bracket();
 //}
-
+//
 
 print_base_axel();
