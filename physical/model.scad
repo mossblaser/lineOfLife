@@ -55,9 +55,30 @@ BEARING_OUTER_LIP    = 5;    // Size of the fixed outer ring
 BEARING_PRINT_SLACK  = 0.5;  // Amount of slack to add to the radius for 3D printed fittings
 
 // Motor shaft dimensions
-MOTOR_SHAFT_RADIUS    = (5+0.5)/2;
-MOTOR_SHAFT_KEY_WIDTH = 3+0.5;
-MOTOR_SHAFT_LENGTH    = 6+1;
+MOTOR_SHAFT_RADIUS        = (5+0.5)/2;
+MOTOR_SHAFT_KEY_WIDTH     = 3+0.5;
+MOTOR_SHAFT_LENGTH        = 6+1;
+MOTOR_SHAFT_CENTER_OFFSET = 8;
+
+// Motor Body Dimensions
+MOTOR_RADIUS = 28/2 + 0.3;
+MOTOR_BLOCK_RADIUS = 17.5 + 0.3;
+MOTOR_BLOCK_WIDTH = 14.5 + 0.3;
+MOTOR_DEPTH = 19 + 0.3;
+MOTOR_TAB_RADIUS = 7/2 + 0.3;
+MOTOR_TAB_SPACING = 35 + 0.3;
+MOTOR_TAB_THICKNESS = 1;
+MOTOR_WIRE_WIDTH = 12;
+MOTOR_WIRE_HEIGHT = 15;
+
+// Motor holder wall thicknesses
+MOTOR_WALL_THICKNESS = 2.5;
+// The thickness of the motor bearing cup's base
+MOTOR_SHELF_THICKNESS = 3;
+// The thickness of the outer ring around the base bearing
+MOTOR_SHELF_RING_THICKNESS = 4;
+// Slack added to the shelf's dimensions itself 
+MOTOR_SHELF_SLACK = 0.5;
 
 // Number of spokes/grips used to support the display
 DISPLAY_BASE_SPOKES = 6;
@@ -455,6 +476,120 @@ module double_terminal_bracket() {
 }
 
 
+// The module in which the motor sits at the bottom of the system. Features 3
+// spokes.
+module motor_base(num_spokes = 3) {
+	color(COLOUR_3D_PRINTED) {
+		difference() {
+			// The basic block of material out of which the unit will be cut
+			union() {
+				// Size of the material from which a shelf will be cut for the bearing
+				cylinder( r = BEARING_OUTER_RADIUS + MOTOR_SHELF_RING_THICKNESS + MOTOR_WALL_THICKNESS
+				        , h = MOTOR_DEPTH + MOTOR_WALL_THICKNESS + MOTOR_SHELF_THICKNESS + BEARING_THICKNESS+ DOWEL_PRINTED_SOCKET_BLOCK
+				        );
+				
+				translate([-MOTOR_SHAFT_CENTER_OFFSET,0,0]) {
+					// Size of the material from which space will be cut for the motor
+					// Motor body
+					cylinder( r = MOTOR_RADIUS + MOTOR_WALL_THICKNESS
+					        , h = MOTOR_DEPTH + MOTOR_WALL_THICKNESS + MOTOR_SHELF_THICKNESS + BEARING_THICKNESS + DOWEL_PRINTED_SOCKET_BLOCK
+					        );
+					
+					// ...and the motor block
+					translate([ -(MOTOR_BLOCK_RADIUS + MOTOR_WALL_THICKNESS)
+					          , -(MOTOR_BLOCK_WIDTH + 2*(MOTOR_WALL_THICKNESS))/2
+					          , 0])
+					cube([ MOTOR_BLOCK_RADIUS + MOTOR_WALL_THICKNESS
+					     , MOTOR_BLOCK_WIDTH + 2*(MOTOR_WALL_THICKNESS)
+					     , MOTOR_DEPTH + MOTOR_WALL_THICKNESS + MOTOR_SHELF_THICKNESS + BEARING_THICKNESS + DOWEL_PRINTED_SOCKET_BLOCK
+					     ]);
+				}
+			}
+			
+			// Carve out the shelf
+			translate([0,0,MOTOR_WALL_THICKNESS + MOTOR_DEPTH + DOWEL_PRINTED_SOCKET_BLOCK])
+			cylinder( r = BEARING_OUTER_RADIUS + MOTOR_SHELF_RING_THICKNESS
+			        , h = MOTOR_DEPTH + MOTOR_WALL_THICKNESS + MOTOR_SHELF_THICKNESS + BEARING_THICKNESS
+			        );
+			
+			// Carve out the motor
+			translate([-MOTOR_SHAFT_CENTER_OFFSET,0,MOTOR_WALL_THICKNESS + DOWEL_PRINTED_SOCKET_BLOCK]) {
+				// Carve out the motor body
+				cylinder( r = MOTOR_RADIUS
+				        , h = MOTOR_DEPTH + MOTOR_SHELF_THICKNESS + BEARING_THICKNESS + 1
+				        );
+				
+				// ...and the motor block
+				translate([ -MOTOR_BLOCK_RADIUS
+				          , -MOTOR_BLOCK_WIDTH/2
+				          , 0])
+				cube([ MOTOR_BLOCK_RADIUS
+				     , MOTOR_BLOCK_WIDTH
+				     , MOTOR_DEPTH + MOTOR_SHELF_THICKNESS + BEARING_THICKNESS + 1
+				     ]);
+				
+				// ...and the tabs
+				translate([0, 0, MOTOR_DEPTH - MOTOR_TAB_THICKNESS]) {
+					hull() {
+						for (offset = [-MOTOR_TAB_SPACING/2, MOTOR_TAB_SPACING/2]) {
+							translate([0, offset, 0])
+							cylinder( r = MOTOR_TAB_RADIUS
+							        , h = MOTOR_TAB_THICKNESS + BEARING_THICKNESS + MOTOR_SHELF_THICKNESS + 1
+							        );
+						}
+					}
+				}
+				
+				// ...and the wiring channel
+				translate([0,0, MOTOR_WIRE_HEIGHT])
+				rotate([0,-90,0])
+				cylinder( r = MOTOR_WIRE_WIDTH/2
+				        , h = MOTOR_BLOCK_RADIUS+MOTOR_WALL_THICKNESS+1
+				        );
+			}
+			
+			// Drill out the spokes
+			for (i = [0:num_spokes-1]) {
+				rotate([0,0,i*(360/num_spokes)])
+				translate([ BEARING_OUTER_RADIUS + MOTOR_SHELF_RING_THICKNESS + MOTOR_WALL_THICKNESS
+				            - DOWEL_PRINTED_SOCKET_DEPTH
+				          , 0
+				          , DOWEL_PRINTED_SOCKET_BLOCK/2
+				          ])
+				rotate([0,90,0])
+				cylinder( r = DOWEL_PRINTED_SOCKET_RADIUS
+				        , h = MOTOR_BLOCK_RADIUS+MOTOR_SHAFT_CENTER_OFFSET // Long enough...
+				        );
+			}
+		}
+	}
+}
+
+
+// The cup which sits between the motor base and the bearing
+module motor_base_bearing_fitting() {
+	color(COLOUR_3D_PRINTED) {
+		difference() {
+			// The cup itself
+			cylinder( r = BEARING_OUTER_RADIUS + MOTOR_SHELF_RING_THICKNESS - MOTOR_SHELF_SLACK
+			        , h = BEARING_THICKNESS + MOTOR_SHELF_THICKNESS
+			        );
+			
+			// Carve out space for the bearing
+			translate([0,0,MOTOR_SHELF_THICKNESS])
+			cylinder( r = BEARING_OUTER_RADIUS + BEARING_PRINT_SLACK
+			        , h = BEARING_THICKNESS + 1
+			        );
+			
+			// Punch out everything except the lip
+			translate([0,0,-0.5])
+			cylinder( r = BEARING_OUTER_RADIUS - BEARING_OUTER_LIP
+			        , h = MOTOR_SHELF_THICKNESS + 1
+			        );
+		}
+	}
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Printable Parts (for STL Export)
@@ -478,6 +613,38 @@ module print_base_axel() {
 	    );
 }
 
+// Tripple brackets
+module print_bracket() {
+	terminal_bracket();
+}
+
+// Motor base
+module print_motor_base() {
+	motor_base();
+}
+
+// Motor base bearing fitting
+module print_motor_base_bearing_fitting() {
+	motor_base_bearing_fitting();
+}
+
+// A grip for the top of the display
+module print_top_display_grip() {
+	rotate([0,0,45])
+	translate([-DISPLAY_RADIUS + DOWEL_PRINTED_SOCKET_BLOCK/2,0,0])
+	display_grip(0);
+}
+
+// A grip for the bottom of the display
+module print_base_display_grip() {
+	rotate([0,0,45])
+	translate([-DISPLAY_RADIUS + DOWEL_PRINTED_SOCKET_BLOCK_LOADED/2,0,0])
+	display_grip( 0 
+	            , DOWEL_PRINTED_SOCKET_BLOCK = DOWEL_PRINTED_SOCKET_BLOCK_LOADED
+	            , DOWEL_PRINTED_SOCKET_DEPTH = DOWEL_PRINTED_SOCKET_DEPTH_LOADED
+	            );
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // What's displayed
@@ -496,6 +663,5 @@ module print_base_axel() {
 //			else
 //				terminal_bracket();
 //}
-//
 
-print_base_axel();
+print_top_display_grip();
