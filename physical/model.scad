@@ -613,9 +613,14 @@ module print_base_axel() {
 	    );
 }
 
-// Tripple brackets
+// Tripple bracket
 module print_bracket() {
 	terminal_bracket();
+}
+
+// Tripple bracket with two vertical attachments
+module print_double_bracket() {
+	double_terminal_bracket();
 }
 
 // Motor base
@@ -645,6 +650,15 @@ module print_base_display_grip() {
 	            );
 }
 
+// A axel which holds the outside of the top bearing and connects to the frame
+module print_top_bearing_grip() {
+	translate([ 0,0
+	          , DOWEL_PRINTED_SOCKET_BLOCK + BEARING_THICKNESS + DISPLAY_GRIP_THICKNESS
+	          ])
+	rotate([180,0,0])
+	top_bearing_grip();
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // What's displayed
@@ -664,4 +678,4 @@ module print_base_display_grip() {
 //				terminal_bracket();
 //}
 
-print_top_display_grip();
+print_motor_base();
