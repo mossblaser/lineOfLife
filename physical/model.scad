@@ -35,6 +35,7 @@ DISPLAY_CIRCUMFRENCE = 1000;  // 1m
 DISPLAY_RADIUS       = (DISPLAY_CIRCUMFRENCE / PI) / 2;
 DISPLAY_THICKNESS    = 1;
 
+
 // The cardboard rings which live inside the display to hold its shape
 DISPLAY_SHAPE_RING_THICKNESS = 3;  // Cardboard Thickness
 DISPLAY_SHAPE_RINGS_START    = 50; // The offset from the bottom of the cylinder of the first ring.
@@ -148,6 +149,8 @@ module display_grip( angle
 	                    / (2*pow(DISPLAY_RADIUS+DISPLAY_GRIP_LEDGE,2))
 	                  );
 	
+	echo("Difference of axel radius from display radius: ", DISPLAY_THICKNESS + DISPLAY_GRIP_THICKNESS);
+	
 	color(COLOUR_3D_PRINTED)
 	rotate([0,0, angle]) {
 		difference() {
@@ -222,6 +225,9 @@ module axel( num_spokes
 	
 	// Position of the end of rods within the axel
 	rod_inner_radius = inner_radius * cos((360/num_spokes)/2);
+	
+	echo("Radius of end of spoke socket: ", rod_inner_radius);
+	echo("Thickness", DISPLAY_GRIP_THICKNESS + DOWEL_PRINTED_SOCKET_BLOCK);
 	
 	color(COLOUR_3D_PRINTED) {
 		// Bearing lip contact
@@ -340,6 +346,9 @@ module top_bearing_grip(num_spokes = 3) {
 	
 	// Position of the end of rods within the axel
 	rod_inner_radius = inner_radius * cos((360/num_spokes)/2);
+	echo("Top bearing rod-end radius", rod_inner_radius);
+	echo("Dowel socket depth", DOWEL_PRINTED_SOCKET_DEPTH);
+	echo("Thickness", BEARING_THICKNESS + DISPLAY_GRIP_THICKNESS + DOWEL_PRINTED_SOCKET_BLOCK);
 	
 	color(COLOUR_3D_PRINTED) {
 		// The axel
@@ -404,6 +413,9 @@ module bracket(angles = [-180/6, 0, 180/6]) {
 	// rods should radiate.
 	min_inner_radius = sqrt(pow(2.5*DOWEL_PRINTED_SOCKET_RADIUS,2) / (2*(1 - cos(min_angle))));
 	
+	echo("Bracket rod inner radius:", min_inner_radius);
+	echo("Bracket thickness:", DOWEL_PRINTED_SOCKET_BLOCK);
+	
 	color(COLOUR_3D_PRINTED) {
 		// The joint between the two angles
 		cylinder(r = DOWEL_PRINTED_SOCKET_BLOCK/2, h = DOWEL_PRINTED_SOCKET_BLOCK);
@@ -435,6 +447,8 @@ module bracket(angles = [-180/6, 0, 180/6]) {
 
 // A 3-spoked bracket which also terminates a long vertial shaft
 module terminal_bracket() {
+	echo("Terminal Bracket vertical socket offset:", DOWEL_PRINTED_SOCKET_BLOCK-DOWEL_PRINTED_SOCKET_DEPTH);
+	
 	color(COLOUR_3D_PRINTED)
 	difference() {
 		bracket();
@@ -479,6 +493,12 @@ module double_terminal_bracket() {
 // The module in which the motor sits at the bottom of the system. Features 3
 // spokes.
 module motor_base(num_spokes = 3) {
+	echo("Motor Base spoke end radius", BEARING_OUTER_RADIUS +
+	MOTOR_SHELF_RING_THICKNESS + MOTOR_WALL_THICKNESS -
+	DOWEL_PRINTED_SOCKET_DEPTH);
+	
+	echo("motor_base height", MOTOR_DEPTH + MOTOR_WALL_THICKNESS + MOTOR_SHELF_THICKNESS + BEARING_THICKNESS+ DOWEL_PRINTED_SOCKET_BLOCK);
+	
 	color(COLOUR_3D_PRINTED) {
 		difference() {
 			// The basic block of material out of which the unit will be cut
@@ -678,4 +698,4 @@ module print_top_bearing_grip() {
 //				terminal_bracket();
 //}
 
-print_motor_base();
+print_top_bearing_grip();
