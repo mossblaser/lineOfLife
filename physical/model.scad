@@ -40,7 +40,7 @@ DISPLAY_THICKNESS    = 1;
 DISPLAY_SHAPE_RING_THICKNESS = 3;  // Cardboard Thickness
 DISPLAY_SHAPE_RINGS_START    = 50; // The offset from the bottom of the cylinder of the first ring.
 DISPLAY_SHAPE_RINGS_END      = 50; // The offset from the top of the cylinder of the last ring.
-DISPLAY_SHAPE_RINGS_NUM      = 4;  // Number of shaping rings
+DISPLAY_SHAPE_RINGS_NUM      = 3;  // Number of shaping rings
 
 // Size of the ledge on each of the spokes which the display will rest.
 DISPLAY_GRIP_LEDGE = 5;
@@ -91,6 +91,21 @@ DISPLAY_TOP_SPOKES = 3;
 DOUBLE_SHAFT_SEP = 33; // Approximately the width of circuit board (1.4")
 
 
+// Parameters for the LED board holder
+LED_GRIP_THICKNESS   = 4;
+LED_HOLDER_THICKNESS = DOWEL_PRINTED_SOCKET_BLOCK;
+LED_ARM_THICKNESS = 2.5; // Thickness of the fingers at the end of the arm
+LED_ARM_OVERHANG = 2;//
+
+// Distance of the LED boards from the dowel rod centers
+LED_DISTANCE = 36;
+
+LED_BOARD_THICKNESS = 4.0;
+LED_WIDE_BOARD_THICKNESS = 5.5;
+LED_SUPPORT_WIDTH = 18;
+LED_BOARD_WIDTH = 39;
+
+
 ////////////////////////////////////////////////////////////////////////////////
 // Colour Palette
 ////////////////////////////////////////////////////////////////////////////////
@@ -107,7 +122,7 @@ COLOUR_3D_PRINTED   = [0.2,0.2,0.2];
 // The display cylinder and axel
 module display() {
 	// The display surface itself
-	color(COLOUR_GLOW_IN_DARK)
+	%color(COLOUR_GLOW_IN_DARK)
 		difference() {
 			cylinder(h = DISPLAY_HEIGHT, r=DISPLAY_RADIUS);
 			translate([0,0,-0.5])
@@ -297,42 +312,6 @@ module axel( num_spokes
 		}
 	}
 }
-
-// Display with grips and axels.
-module display_assembly() {
-	// Bottom Axel with shaft
-	axel( DISPLAY_BASE_SPOKES
-	    , keyed = true
-	    , DOWEL_PRINTED_SOCKET_BLOCK = DOWEL_PRINTED_SOCKET_BLOCK_LOADED
-	    , DOWEL_PRINTED_SOCKET_DEPTH = DOWEL_PRINTED_SOCKET_DEPTH_LOADED
-	    );
-	
-	translate([0,0,BEARING_THICKNESS + DISPLAY_GRIP_THICKNESS]) { 
-		// Cylinder Itself
-		translate([0,0,DISPLAY_GRIP_THICKNESS])
-			%display();
-		
-		// Base Support
-		for (i = [0:DISPLAY_BASE_SPOKES-1])
-			display_grip( i*(360/DISPLAY_BASE_SPOKES)
-			            , DOWEL_PRINTED_SOCKET_BLOCK = DOWEL_PRINTED_SOCKET_BLOCK_LOADED
-			            , DOWEL_PRINTED_SOCKET_DEPTH = DOWEL_PRINTED_SOCKET_DEPTH_LOADED
-			            );
-		
-		// Top Support
-		translate([0,0, DISPLAY_HEIGHT + 2*DISPLAY_GRIP_THICKNESS]) {
-			// Supports
-			for (i = [0:DISPLAY_TOP_SPOKES])
-				rotate([180,0,0])
-					display_grip(i*(360/DISPLAY_TOP_SPOKES));
-			// Axel at the top
-			translate([0,0,BEARING_THICKNESS + DISPLAY_GRIP_THICKNESS])
-				rotate([180,0,0])
-					axel(DISPLAY_TOP_SPOKES);
-		}
-	}
-}
-
 
 
 // An axel-like item which supports the outside of the top bearing and connects
@@ -611,6 +590,101 @@ module motor_base_bearing_fitting() {
 }
 
 
+module led_grip(thickness = LED_GRIP_THICKNESS) {
+	difference() {
+		union() {
+			// Rounded ends
+			translate([0,-DOUBLE_SHAFT_SEP/2,0])
+			cylinder(r = DOWEL_PRINTED_SOCKET_BLOCK/2, h = thickness);
+			translate([0,DOUBLE_SHAFT_SEP/2,0])
+			cylinder(r = DOWEL_PRINTED_SOCKET_BLOCK/2, h = thickness);
+			
+			// Arms
+			translate([0, -DOUBLE_SHAFT_SEP/2-DOWEL_PRINTED_SOCKET_BLOCK/2, 0]) {
+				cube([LED_DISTANCE-LED_BOARD_THICKNESS,DOWEL_PRINTED_SOCKET_BLOCK, thickness]);
+				translate([0,DOUBLE_SHAFT_SEP,0])
+				cube([LED_DISTANCE-LED_BOARD_THICKNESS,DOWEL_PRINTED_SOCKET_BLOCK, thickness]);
+			}
+		}
+		
+		// Drill out dowel holes
+		translate([0,DOUBLE_SHAFT_SEP/2,-0.5])
+		cylinder(r = DOWEL_PRINTED_SOCKET_RADIUS+0.25, h = thickness+1);
+		translate([0,-DOUBLE_SHAFT_SEP/2,-0.5])
+		cylinder(r = DOWEL_PRINTED_SOCKET_RADIUS+0.25, h = thickness+1);
+	}
+	
+	// Grip ends
+	translate([LED_DISTANCE - LED_BOARD_THICKNESS/2,0,0])
+	difference() {
+		hull() {
+			translate([0,LED_BOARD_WIDTH/2,0])
+			cylinder(r = LED_ARM_THICKNESS + LED_BOARD_THICKNESS, h = thickness);
+			translate([0,-LED_BOARD_WIDTH/2,0])
+			cylinder(r = LED_ARM_THICKNESS + LED_BOARD_THICKNESS, h = thickness);
+		}
+		
+		// Cut out front
+		translate([0,-LED_BOARD_WIDTH/2,-0.5])
+		cube([LED_BOARD_THICKNESS+1,LED_BOARD_WIDTH,thickness+1]);
+		
+		// Cut out slot
+		translate([0,-LED_BOARD_WIDTH/2 + LED_ARM_OVERHANG,-0.5])
+		cube([LED_ARM_THICKNESS+LED_BOARD_THICKNESS+1,LED_BOARD_WIDTH-2*LED_ARM_OVERHANG,thickness+1]);
+	}
+}
+
+
+module led_holder(thickness = DOWEL_PRINTED_SOCKET_DEPTH) {
+	difference() {
+		union() {
+			// Rounded ends
+			translate([0,-DOUBLE_SHAFT_SEP/2,0])
+			cylinder(r = DOWEL_PRINTED_SOCKET_BLOCK/2, h = thickness);
+			translate([0,DOUBLE_SHAFT_SEP/2,0])
+			cylinder(r = DOWEL_PRINTED_SOCKET_BLOCK/2, h = thickness);
+			
+			// Arms
+			translate([0, -DOUBLE_SHAFT_SEP/2-DOWEL_PRINTED_SOCKET_BLOCK/2, 0]) {
+				cube([LED_DISTANCE-LED_WIDE_BOARD_THICKNESS,DOWEL_PRINTED_SOCKET_BLOCK, thickness]);
+				translate([0,DOUBLE_SHAFT_SEP,0])
+				cube([LED_DISTANCE-LED_WIDE_BOARD_THICKNESS,DOWEL_PRINTED_SOCKET_BLOCK, thickness]);
+			}
+		}
+		
+		// Drill out dowel holes
+		translate([0,DOUBLE_SHAFT_SEP/2,-0.5])
+		cylinder(r = DOWEL_PRINTED_SOCKET_RADIUS+0.25, h = thickness+1);
+		translate([0,-DOUBLE_SHAFT_SEP/2,-0.5])
+		cylinder(r = DOWEL_PRINTED_SOCKET_RADIUS+0.25, h = thickness+1);
+	}
+	
+	// Grip ends
+	translate([LED_DISTANCE - LED_WIDE_BOARD_THICKNESS/2,0,0]) {
+		difference() {
+			hull() {
+				translate([0,LED_BOARD_WIDTH/2,0])
+				cylinder(r = LED_ARM_THICKNESS + LED_WIDE_BOARD_THICKNESS, h = thickness);
+				translate([0,-LED_BOARD_WIDTH/2,0])
+				cylinder(r = LED_ARM_THICKNESS + LED_WIDE_BOARD_THICKNESS, h = thickness);
+			}
+			
+			// Cut out front
+			translate([0,-LED_BOARD_WIDTH/2,-0.5])
+			cube([LED_WIDE_BOARD_THICKNESS+1,LED_BOARD_WIDTH,thickness+1]);
+			
+			// Cut out slot
+			translate([0,-LED_BOARD_WIDTH/2 + LED_ARM_OVERHANG,-0.5])
+			cube([LED_ARM_THICKNESS+LED_WIDE_BOARD_THICKNESS+1,LED_BOARD_WIDTH-2*LED_ARM_OVERHANG,thickness+1]);
+		}
+		
+		// Shelf
+		translate([0,LED_BOARD_WIDTH/2 - LED_SUPPORT_WIDTH,0])
+		cube([LED_ARM_THICKNESS + LED_WIDE_BOARD_THICKNESS, LED_SUPPORT_WIDTH, LED_GRIP_THICKNESS]);
+	}
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 // Printable Parts (for STL Export)
 ////////////////////////////////////////////////////////////////////////////////
@@ -679,23 +753,75 @@ module print_top_bearing_grip() {
 	top_bearing_grip();
 }
 
+// A holder which holds an LED strip in place
+module print_led_grip() {
+	led_grip();
+}
+
+// A support which holds up the bottom of the LED strip.
+module print_led_holder() {
+	led_holder();
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Assembled Model
+////////////////////////////////////////////////////////////////////////////////
+
+// Display with grips and axels.
+module display_assembly() {
+	// Bottom Axel with shaft
+	axel( DISPLAY_BASE_SPOKES
+	    , keyed = true
+	    , DOWEL_PRINTED_SOCKET_BLOCK = DOWEL_PRINTED_SOCKET_BLOCK_LOADED
+	    , DOWEL_PRINTED_SOCKET_DEPTH = DOWEL_PRINTED_SOCKET_DEPTH_LOADED
+	    );
+	
+	translate([0,0,BEARING_THICKNESS + DISPLAY_GRIP_THICKNESS]) { 
+		// Cylinder Itself
+		translate([0,0,DISPLAY_GRIP_THICKNESS])
+			display();
+		
+		// Base Support
+		for (i = [0:DISPLAY_BASE_SPOKES-1])
+			display_grip( i*(360/DISPLAY_BASE_SPOKES)
+			            , DOWEL_PRINTED_SOCKET_BLOCK = DOWEL_PRINTED_SOCKET_BLOCK_LOADED
+			            , DOWEL_PRINTED_SOCKET_DEPTH = DOWEL_PRINTED_SOCKET_DEPTH_LOADED
+			            );
+		
+		// Top Support
+		translate([0,0, DISPLAY_HEIGHT + 2*DISPLAY_GRIP_THICKNESS]) {
+			// Supports
+			for (i = [0:DISPLAY_TOP_SPOKES])
+				rotate([180,0,0])
+					display_grip(i*(360/DISPLAY_TOP_SPOKES));
+			// Axel at the top
+			translate([0,0,BEARING_THICKNESS + DISPLAY_GRIP_THICKNESS])
+				rotate([180,0,0])
+					axel(DISPLAY_TOP_SPOKES);
+		}
+	}
+}
+
+MOTOR_ASSEMBLY_HEIGHT = MOTOR_DEPTH + MOTOR_WALL_THICKNESS + MOTOR_SHELF_THICKNESS + BEARING_THICKNESS + DOWEL_PRINTED_SOCKET_BLOCK;
+
+// Motor assembly with bearing
+module motor_assembly() {
+	motor_base();
+	
+	translate([0,0,MOTOR_ASSEMBLY_HEIGHT - BEARING_THICKNESS - MOTOR_SHELF_THICKNESS])
+		motor_base_bearing_fitting();
+}
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // What's displayed
 ////////////////////////////////////////////////////////////////////////////////
 
-//display_assembly();
+//translate([0,0,MOTOR_ASSEMBLY_HEIGHT - BEARING_THICKNESS])
+//	display_assembly();
 
-//translate([0,0,-(BEARING_THICKNESS + DISPLAY_GRIP_THICKNESS)])
-//rotate([0,0,60])
-//top_bearing_grip(3);
-//for (a = [0:2]) {
-//	rotate([0,0,a*(360/3)])
-//		translate([-100,0,0])
-//			if (a == 0)
-//				double_terminal_bracket();
-//			else
-//				terminal_bracket();
-//}
+//motor_assembly();
 
-print_top_bearing_grip();
+print_led_holder();
