@@ -21,6 +21,185 @@ class LineOfLife(object):
 	"""
 	
 	
+	def __init__(self, pipe):
+		"""
+		Connect to a line of life display at the end of the given pipe, for example
+		a Serial connection.
+		"""
+		
+		self.pipe = pipe
+		
+		# Cached display constants
+		self._display_height = None
+		self._display_width = None
+		
+		# Re-sync on first connection
+		self.resync()
+	
+	
+	def resync(self):
+		"""
+		Resynchronise with the controller putting it into the idle state.
+		"""
+		# Since all blocking commands are terminated by sending a command and no
+		# command accepts an infinite number of arguments sending a long stream of
+		# NOPs will guarantee the device will end up in the command-accepting state.
+		
+		for _ in range(100):
+			self._cmd_no_operation()
+		
+		self._cmd_ping()
+	
+	
+	def push_line(self, line):
+		"""
+		Push a line of pixels to the display. The pixel values should be given as a
+		list of pixel values of length self.display_height. This method blocks when
+		the device's on-board buffer is full.
+		"""
+		assert len(line) == self.display_height \
+		     , "Display line must match display height."
+		
+		line_str = ""
+		for byte_offset in range(0, self.display_height, 8):
+			byte = 0
+			for bit_num in range(7,-1,-1):
+				byte <<= 1
+				byte |= int(bool(line[byte_offset + bit_num]))
+			line_str += chr(byte)
+		
+		self._cmd_push_line(line_str)
+	
+	def flush_buffer(self):
+		"""
+		Block until the device's buffer is empty. Returns as soon as the last item
+		from the buffer is sent to the display.
+		
+		This should be used before changing device settings such as the pixel aspect
+		ratio and duty to ensure only subsequent added lines are effected.
+		"""
+		# Simply a thin wrapper around the native command
+		self._cmd_flush_buffer()
+	
+	
+	def clear_buffer(self):
+		"""
+		Forcibly empty the device's display buffer. The pixel currently displayed
+		will not be interrupted.
+		"""
+		# Simply a thin wrapper around the native command
+		self._cmd_clear_buffer()
+	
+	
+	################################################################################
+	# Device settings/information
+	################################################################################
+	
+	@property
+	def display_height(self):
+		"""
+		Read only. Get the display height in pixels (also the number of LEDs).
+		
+		Internally caches this value the first time it is read.
+		"""
+		if self._display_height is None:
+			self._display_height = self._cmd_reg_read(self.REG_DISPLAY_HEIGHT)
+		
+		return self._display_height
+	
+	
+	@property
+	def display_width(self):
+		"""
+		Read only. Get the display width in pixels (the number of pixels in one
+		complete rotation with a pixel aspect ratio of 1:1.
+		
+		Internally caches this value the first time it is read.
+		"""
+		if self._display_width is None:
+			self._display_width = self._cmd_reg_read(self.REG_DISPLAY_WIDTH)
+		
+		return self._display_width
+	
+	
+	@property
+	def rpm(self):
+		"""
+		Read only. The display rotation speed in RPM.
+		"""
+		raw_rpm = self._cmd_reg_read(self.REG_RPM)
+		
+		# Sign extend
+		raw_rpm |= -1<<16 if raw_rpm&0x8000 else 0
+		
+		# Convert from fixed point to floating point
+		return float(raw_rpm) / float(1<<8)
+	
+	
+	@property
+	def pixel_aspect_ratio(self):
+		"""
+		The size of the pixel width as a proportion of a pixel's height.
+		"""
+		raw_aspect_ratio = self._cmd_reg_read(self.REG_PIXEL_ASPECT_RATIO)
+		
+		# Convert to a floating point number
+		return float(raw_aspect_ratio) / float(1<<8)
+	
+	
+	@pixel_aspect_ratio.setter
+	def pixel_aspect_ratio(self, aspect_ratio):
+		"""
+		The size of the pixel width as a proportion of a pixel's height.
+		"""
+		assert aspect_ratio > 0.0 \
+		     , "Cannot have negative or zero aspect ratio."
+		
+		# Convert to fixed point
+		raw_aspect_ratio = int(aspect_ratio*(1<<8))
+		
+		# Truncate (as required) and write back
+		self._cmd_reg_write(self.REG_PIXEL_ASPECT_RATIO, raw_aspect_ratio & 0xFFFF)
+	
+	
+	@property
+	def pixel_duty(self):
+		"""
+		The proportion of the time pixels are lit during their time for display. Can
+		be used to add clean divisions between pixels.
+		"""
+		raw_duty = self._cmd_reg_read(self.REG_PIXEL_DUTY)
+		
+		# Convert to a floating point number
+		return float(raw_duty) / float(1<<8)
+	
+	
+	@pixel_duty.setter
+	def pixel_duty(self, duty):
+		"""
+		The proportion of the time pixels are lit during their time for display. Can
+		be used to add clean divisions between pixels.
+		"""
+		assert 0.0 < duty <= 1.0 \
+		     , "Duty must be between 0 and 1."
+		
+		# Convert to fixed point
+		raw_duty = int(duty*(1<<8))
+		
+		# Truncate (as required) and write back
+		self._cmd_reg_write(self.REG_PIXEL_DUTY, raw_duty & 0xFFFF)
+	
+	
+	@property
+	def buffer_size(self):
+		"""
+		Read only. Returns a tuple (size, free_spaces) representing the current size
+		and state of the display buffer.
+		"""
+		response = self._cmd_reg_read(self.REG_BUFFER_SIZE)
+		return (response>>8, response&0xFF)
+	
+	
 	PROTOCOL_VERSION = 0x1
 	
 	################################################################################
@@ -126,146 +305,6 @@ class LineOfLife(object):
 	REG_BUFFER_SIZE = 0x5
 	
 	
-	def __init__(self, pipe):
-		"""
-		Connect to a line of life display at the end of the given pipe, for example
-		a Serial connection.
-		"""
-		
-		self.pipe = pipe
-		
-		# Cached display constants
-		self._display_height = None
-		self._display_width = None
-		
-		# Re-sync on first connection
-		self.resync()
-	
-	
-	def resync(self):
-		"""
-		Resynchronise with the controller putting it into the idle state.
-		"""
-		# Since all blocking commands are terminated by sending a command and no
-		# command accepts an infinite number of arguments sending a long stream of
-		# NOPs will guarantee the device will end up in the command-accepting state.
-		
-		for _ in range(100):
-			self._cmd_no_operation()
-		
-		self._cmd_ping()
-	
-	
-	################################################################################
-	# Device register access properties
-	################################################################################
-	
-	@property
-	def display_height(self):
-		"""
-		Get the display height in pixels (also the number of LEDs).
-		
-		Internally caches this value the first time it is read.
-		"""
-		if self._display_height is None:
-			self._display_height = self._cmd_reg_read(self.REG_DISPLAY_HEIGHT)
-		
-		return self._display_height
-	
-	
-	@property
-	def display_width(self):
-		"""
-		Get the display width in pixels (the number of pixels in one complete
-		rotation with a pixel aspect ratio of 1:1.
-		
-		Internally caches this value the first time it is read.
-		"""
-		if self._display_width is None:
-			self._display_width = self._cmd_reg_read(self.REG_DISPLAY_WIDTH)
-		
-		return self._display_width
-	
-	
-	@property
-	def rpm(self):
-		"""
-		The display rotation speed in RPM.
-		"""
-		raw_rpm = self._cmd_reg_read(self.REG_RPM)
-		
-		# Sign extend
-		raw_rpm |= -1<<16 if raw_rpm&0x8000 else 0
-		
-		# Convert from fixed point to floating point
-		return float(raw_rpm) / float(1<<8)
-	
-	
-	@property
-	def pixel_aspect_ratio(self):
-		"""
-		The size of the pixel width as a proportion of a pixel's height.
-		"""
-		raw_aspect_ratio = self._cmd_reg_read(self.REG_PIXEL_ASPECT_RATIO)
-		
-		# Convert to a floating point number
-		return float(raw_aspect_ratio) / float(1<<8)
-	
-	
-	@pixel_aspect_ratio.setter
-	def pixel_aspect_ratio(self, aspect_ratio):
-		"""
-		The size of the pixel width as a proportion of a pixel's height.
-		"""
-		assert aspect_ratio > 0.0 \
-		     , "Cannot have negative or zero aspect ratio."
-		
-		# Convert to fixed point
-		raw_aspect_ratio = int(aspect_ratio*(1<<8))
-		
-		# Truncate (as required) and write back
-		self._cmd_reg_write(self.REG_PIXEL_ASPECT_RATIO, raw_aspect_ratio & 0xFFFF)
-	
-	
-	@property
-	def pixel_duty(self):
-		"""
-		The proportion of the time pixels are lit during their time for display. Can
-		be used to add clean divisions between pixels.
-		"""
-		raw_duty = self._cmd_reg_read(self.REG_PIXEL_DUTY)
-		
-		# Convert to a floating point number
-		return float(raw_duty) / float(1<<8)
-	
-	
-	@pixel_duty.setter
-	def pixel_duty(self, duty):
-		"""
-		The proportion of the time pixels are lit during their time for display. Can
-		be used to add clean divisions between pixels.
-		"""
-		assert 0.0 < duty <= 1.0 \
-		     , "Duty must be between 0 and 1."
-		
-		# Convert to fixed point
-		raw_duty = int(duty*(1<<8))
-		
-		# Truncate (as required) and write back
-		self._cmd_reg_write(self.REG_PIXEL_DUTY, raw_duty & 0xFFFF)
-	
-	
-	@property
-	def buffer_size(self):
-		"""
-		Returns a tuple (size, free_spaces) representing the current size and state
-		of the display buffer.
-		"""
-		response = self._cmd_reg_read(self.REG_BUFFER_SIZE)
-		return (response>>8, response&0xFF)
-	
-	
-	
 	################################################################################
 	# Low-level display driver commands.
 	################################################################################
@@ -365,27 +404,55 @@ class LineOfLife(object):
 
 
 ################################################################################
-# Example usage
+# Example usage: A very quick'n'dirty 1D cellular automata demo
 ################################################################################
 
 if __name__=="__main__":
 	import serial
 	import time
+	import math
+	
 	ser = serial.Serial(port = "/dev/ttyUSB0", baudrate = 115200, timeout = 3)
 	lol = LineOfLife(ser)
 	
-	lol.pixel_aspect_ratio = 1.5
+	lol.pixel_aspect_ratio = 1
 	lol.pixel_duty = 0.5
 	
-	lol._cmd_push_line("\xFF"*(120/8))
-	lol._cmd_push_line("\x55"*(120/8))
-	lol._cmd_push_line("\xAA"*(120/8))
-	lol._cmd_push_line("\x55"*(120/8))
-	lol._cmd_push_line("\xFF"*(120/8))
-	lol._cmd_push_line("\x00"*(120/8))
-	lol._cmd_push_line("\x00"*(120/8))
-	lol._cmd_flush_buffer()
+	# A quick-and-dirty 1D cellular automata
+	mask  = (1l<<lol.display_height)-1
+	
+	while True:
+		# Random rule
+		rule = int(random.random()*0xFF)
+		
+		print "Presenting Rule %d"%rule
+		
+		# Random initial state
+		state = sum(1l<<n for n in range(lol.display_height) if random.random()<0.5)
+		
+		for _ in range(lol.display_width/4):
+			# Calculate the new state
+			new_state = 0l
+			state <<= 1
+			for bit_num in range(1, lol.display_height+1):
+				new_state |= ((rule>>((state>>(bit_num-1))&0b111))&1)<<(bit_num-1)
+			
+			# Skip if the automata just shows a constant pattern
+			if (state>>1) == new_state&mask:
+				break;
+			else:
+				state = new_state&mask
+			
+			# Push the line to the display
+			lol.push_line([state&(1<<y) for y in range(lol.display_height)])
+		
+		# Put a blank space between different automata
+		lol.push_line([0] * lol.display_height)
+		lol.push_line([0] * lol.display_height)
+		lol.push_line([0] * lol.display_height)
+		lol.push_line([0] * lol.display_height)
+		lol.flush_buffer()
 	
 	lol.pixel_aspect_ratio = 1
 	lol.pixel_duty = 1
-	
+
