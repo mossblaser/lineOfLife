@@ -96,8 +96,7 @@ class LineOfLife(object):
 	REG_DISPLAY_HEIGHT = 0x0
 	
 	# (Read only) The number of horizontal pixels in one complete rotation of the
-	# display with the current pixel aspect ratio. Changing the value of
-	# REG_PIXEL_ASPECT_RATIO will change this value.
+	# display with an aspect ratio of 1:1.
 	REG_DISPLAY_WIDTH = 0x1
 	
 	# (Read only) The display's RPM. The value is given as a signed number of
@@ -117,13 +116,13 @@ class LineOfLife(object):
 	# defined horizontal boundaries by turning off the LEDs for a short period
 	# between each pixel.
 	#
-	# The value written to this register is given in 1/(2^16)ths and may be
-	# clamped to an implementation defined range.
-	REG_PIXEL_DUTY_CYCLE = 0x4
+	# The value written to this register is given in 1/256ths, has a maximum
+	# value of 1.0 and may be clamped to an implementation defined range.
+	REG_PIXEL_DUTY = 0x4
 	
 	# (Read only) The size/occupancy of the display buffer in lines. The top 8
 	# bits gives the size of the buffer and the bottom 8 bits the number of items
-	# in the buffer (including the one currently displayed).
+	# (not including the one currently displayed)
 	REG_BUFFER_SIZE = 0x5
 	
 	
@@ -134,6 +133,10 @@ class LineOfLife(object):
 		"""
 		
 		self.pipe = pipe
+		
+		# Cached display constants
+		self._display_height = None
+		self._display_width = None
 		
 		# Re-sync on first connection
 		self.resync()
@@ -151,6 +154,116 @@ class LineOfLife(object):
 			self._cmd_no_operation()
 		
 		self._cmd_ping()
+	
+	
+	################################################################################
+	# Device register access properties
+	################################################################################
+	
+	@property
+	def display_height(self):
+		"""
+		Get the display height in pixels (also the number of LEDs).
+		
+		Internally caches this value the first time it is read.
+		"""
+		if self._display_height is None:
+			self._display_height = self._cmd_reg_read(self.REG_DISPLAY_HEIGHT)
+		
+		return self._display_height
+	
+	
+	@property
+	def display_width(self):
+		"""
+		Get the display width in pixels (the number of pixels in one complete
+		rotation with a pixel aspect ratio of 1:1.
+		
+		Internally caches this value the first time it is read.
+		"""
+		if self._display_width is None:
+			self._display_width = self._cmd_reg_read(self.REG_DISPLAY_WIDTH)
+		
+		return self._display_width
+	
+	
+	@property
+	def rpm(self):
+		"""
+		The display rotation speed in RPM.
+		"""
+		raw_rpm = self._cmd_reg_read(self.REG_RPM)
+		
+		# Sign extend
+		raw_rpm |= -1<<16 if raw_rpm&0x8000 else 0
+		
+		# Convert from fixed point to floating point
+		return float(raw_rpm) / float(1<<8)
+	
+	
+	@property
+	def pixel_aspect_ratio(self):
+		"""
+		The size of the pixel width as a proportion of a pixel's height.
+		"""
+		raw_aspect_ratio = self._cmd_reg_read(self.REG_PIXEL_ASPECT_RATIO)
+		
+		# Convert to a floating point number
+		return float(raw_aspect_ratio) / float(1<<8)
+	
+	
+	@pixel_aspect_ratio.setter
+	def pixel_aspect_ratio(self, aspect_ratio):
+		"""
+		The size of the pixel width as a proportion of a pixel's height.
+		"""
+		assert aspect_ratio > 0.0 \
+		     , "Cannot have negative or zero aspect ratio."
+		
+		# Convert to fixed point
+		raw_aspect_ratio = int(aspect_ratio*(1<<8))
+		
+		# Truncate (as required) and write back
+		self._cmd_reg_write(self.REG_PIXEL_ASPECT_RATIO, raw_aspect_ratio & 0xFFFF)
+	
+	
+	@property
+	def pixel_duty(self):
+		"""
+		The proportion of the time pixels are lit during their time for display. Can
+		be used to add clean divisions between pixels.
+		"""
+		raw_duty = self._cmd_reg_read(self.REG_PIXEL_DUTY)
+		
+		# Convert to a floating point number
+		return float(raw_duty) / float(1<<8)
+	
+	
+	@pixel_duty.setter
+	def pixel_duty(self, duty):
+		"""
+		The proportion of the time pixels are lit during their time for display. Can
+		be used to add clean divisions between pixels.
+		"""
+		assert 0.0 < duty <= 1.0 \
+		     , "Duty must be between 0 and 1."
+		
+		# Convert to fixed point
+		raw_duty = int(duty*(1<<8))
+		
+		# Truncate (as required) and write back
+		self._cmd_reg_write(self.REG_PIXEL_DUTY, raw_duty & 0xFFFF)
+	
+	
+	@property
+	def buffer_size(self):
+		"""
+		Returns a tuple (size, free_spaces) representing the current size and state
+		of the display buffer.
+		"""
+		response = self._cmd_reg_read(self.REG_BUFFER_SIZE)
+		return (response>>8, response&0xFF)
+	
 	
 	
 	################################################################################
@@ -207,7 +320,9 @@ class LineOfLife(object):
 		
 		self.pipe.write(chr(self.OPCODE_REG_READ | register))
 		
-		return ord(self.pipe.read())<<8 | ord(self.pipe.read())
+		hbyte = self.pipe.read()
+		lbyte = self.pipe.read()
+		return (ord(hbyte)<<8) | ord(lbyte)
 	
 	
 	def _cmd_reg_write(self, register, value):
@@ -256,15 +371,21 @@ class LineOfLife(object):
 if __name__=="__main__":
 	import serial
 	import time
-	ser = serial.Serial(port = "/dev/ttyUSB0", baudrate = 115200, timeout = 1)
-	
+	ser = serial.Serial(port = "/dev/ttyUSB0", baudrate = 115200, timeout = 3)
 	lol = LineOfLife(ser)
-	for _ in range(5):
-		lol._cmd_push_line("\xFF"*(120/8))
-		lol._cmd_push_line("\x55"*(120/8))
-		lol._cmd_push_line("\xAA"*(120/8))
-		lol._cmd_push_line("\x55"*(120/8))
-		lol._cmd_push_line("\xFF"*(120/8))
-		lol._cmd_push_line("\x00"*(120/8))
-		lol._cmd_push_line("\x00"*(120/8))
+	
+	lol.pixel_aspect_ratio = 1.5
+	lol.pixel_duty = 0.5
+	
+	lol._cmd_push_line("\xFF"*(120/8))
+	lol._cmd_push_line("\x55"*(120/8))
+	lol._cmd_push_line("\xAA"*(120/8))
+	lol._cmd_push_line("\x55"*(120/8))
+	lol._cmd_push_line("\xFF"*(120/8))
+	lol._cmd_push_line("\x00"*(120/8))
+	lol._cmd_push_line("\x00"*(120/8))
+	lol._cmd_flush_buffer()
+	
+	lol.pixel_aspect_ratio = 1
+	lol.pixel_duty = 1
 	

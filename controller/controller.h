@@ -134,8 +134,7 @@ typedef enum reg {
 	REG_DISPLAY_HEIGHT = 0x0,
 	
 	// (Read only) The number of horizontal pixels in one complete rotation of the
-	// display with the current pixel aspect ratio. Changing the value of
-	// REG_PIXEL_ASPECT_RATIO will change this value.
+	// display with an aspect ratio of 1:1.
 	REG_DISPLAY_WIDTH = 0x1,
 	
 	// (Read only) The display's RPM. The value is given as a signed number of
@@ -155,13 +154,13 @@ typedef enum reg {
 	// defined horizontal boundaries by turning off the LEDs for a short period
 	// between each pixel.
 	//
-	// The value written to this register is given in 1/(2^16)ths and may be
-	// clamped to an implementation defined range.
-	REG_PIXEL_DUTY_CYCLE = 0x4,
+	// The value written to this register is given in 1/256ths, has a maximum
+	// value of 1.0 and may be clamped to an implementation defined range.
+	REG_PIXEL_DUTY = 0x4,
 	
 	// (Read only) The size/occupancy of the display buffer in lines. The top 8
 	// bits gives the size of the buffer and the bottom 8 bits the number of items
-	// in the buffer (including the one currently displayed).
+	// in the buffer (not including the one currently displayed).
 	REG_BUFFER_SIZE = 0x5,
 } reg_t;
 

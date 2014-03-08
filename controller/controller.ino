@@ -75,9 +75,11 @@ static unsigned int emg_buf_cursor = 0u;
 
 // Current pixel width, in pixel fractions (default to square pixels)
 unsigned int cur_pixel_width = PIXEL_FRACTION;
+unsigned int next_pixel_width = PIXEL_FRACTION;
 
 // The amount of the cur_pixel_width (in pixel fractions) the LEDs are on.
-unsigned int cur_pixel_duty = cur_pixel_width;
+unsigned int cur_pixel_duty = PIXEL_FRACTION;
+unsigned int next_pixel_duty = PIXEL_FRACTION;
 
 
 /**
@@ -97,6 +99,59 @@ bool
 is_led_buffer_empty()
 {
 	return buf_head == buf_tail;
+}
+
+
+/**
+ * Set the width of the next pixel to be displayed.
+ */
+void
+led_set_pixel_width(unsigned int pixel_width)
+{
+	unsigned int old_pixel_width = next_pixel_width;
+	
+	next_pixel_width = pixel_width;
+	// Clamp value 
+	if (next_pixel_width <= 0)
+		next_pixel_width = 1u;
+	
+	// Scale the duty to match the new pixel width
+	led_set_pixel_duty((next_pixel_width*led_get_pixel_duty()) / old_pixel_width);
+}
+
+
+/**
+ * Get the width of the next pixel to be displayed.
+ */
+unsigned int
+led_get_pixel_width(void)
+{
+	return next_pixel_width;
+}
+
+
+/**
+ * Set the duty of the next pixel to be displayed.
+ */
+void
+led_set_pixel_duty(unsigned int pixel_duty)
+{
+	next_pixel_duty = pixel_duty;
+	// Clamp value
+	if (next_pixel_duty <= 0)
+		next_pixel_duty = 1u;
+	else if (next_pixel_duty > led_get_pixel_width())
+		next_pixel_duty = led_get_pixel_width();
+}
+
+
+/**
+ * Get the duty of the next pixel to be displayed.
+ */
+unsigned int
+led_get_pixel_duty(void)
+{
+	return next_pixel_duty;
 }
 
 
@@ -139,13 +194,21 @@ led_loop() {
 	// Does the display actually need to be refreshed?
 	if (num_steps < STEPS_PER_PIXEL_FRACTION(cur_pixel_width))
 		return;
-	num_steps %= STEPS_PER_PIXEL_FRACTION(cur_pixel_width);
+	
+	// Only maintain the period if the pixel width hasn't changed
+	if (cur_pixel_width != next_pixel_width)
+		num_steps = 0;
+	else
+		num_steps %= STEPS_PER_PIXEL_FRACTION(cur_pixel_width);
+	
+	// Update the pixel duty and width
+	cur_pixel_width = next_pixel_width;
+	cur_pixel_duty  = next_pixel_duty;
 	
 	// Work out what to display
 	unsigned char *cur_buf;
 	if (buf_head == buf_tail) {
 		// Empty buffer, show emg message
-		cur_pixel_width = PIXEL_FRACTION;
 		cur_buf = &(emg_buf[emg_buf_cursor++][0]);
 		if (emg_buf_cursor >= EMG_BUF_LENGTH)
 			emg_buf_cursor = 0u;
@@ -165,6 +228,7 @@ led_loop() {
 		SPI.transfer(cur_buf[i]);
 	digitalWrite(LE_PIN, HIGH);
 	digitalWrite(LE_PIN, LOW);
+	
 }
 
 
@@ -205,19 +269,17 @@ unsigned int
 cmd_read_reg(reg_t reg)
 {
 	switch (reg) {
-		case REG_DISPLAY_HEIGHT: return VERTICAL_PIXELS;   break;
-		case REG_DISPLAY_WIDTH:  return HORIZONTAL_PIXELS; break;
-		case REG_RPM:            return DISPLAY_RPM;       break;
+		case REG_DISPLAY_HEIGHT: return VERTICAL_PIXELS;           break;
+		case REG_DISPLAY_WIDTH:  return HORIZONTAL_PIXELS;         break;
+		case REG_RPM:            return (int)(DISPLAY_RPM*(1<<8)); break;
 		
 		case REG_PIXEL_ASPECT_RATIO:
 			// Convert to fixed point 8.8
-			return (cur_pixel_width<<8) / PIXEL_FRACTION;
+			return (led_get_pixel_width()<<8) / PIXEL_FRACTION;
 		
-		case REG_PIXEL_DUTY_CYCLE:
-			// Convert to fixed point 0.16 (lossily by finding the 8.8 and
-			// scaling to 0.16, but this is fine for most realistic duty
-			// cycles)
-			return (cur_pixel_duty<<8 / cur_pixel_width)<<8;
+		case REG_PIXEL_DUTY:
+			// Convert to fixed point 8.8
+			return (led_get_pixel_duty()<<8) / led_get_pixel_width();
 		
 		case REG_BUFFER_SIZE:
 			return (DISPLAY_BUFFER_LENGTH-1)<<16 | get_led_buffer_spaces();
@@ -241,28 +303,13 @@ cmd_write_reg(reg_t reg, unsigned int value)
 			break;
 		
 		case REG_PIXEL_ASPECT_RATIO:
-			{
-				unsigned int old_pixel_width = cur_pixel_width;
-				// Convert from fixed point 8.8
-				cur_pixel_width == (PIXEL_FRACTION<<8) / value;
-				// Clamp value 
-				if (cur_pixel_width <= 0)
-					cur_pixel_width = 1u;
-				
-				// Scale the duty to match the new pixel width
-				cur_pixel_duty = (cur_pixel_width*cur_pixel_duty) / old_pixel_width;
-				// Clamp value
-				if (cur_pixel_duty <= 0)
-					cur_pixel_duty = 1u;
-			}
+			// Convert from fixed point 8.8
+			led_set_pixel_width((PIXEL_FRACTION * value)>>8);
 			break;
 		
-		case REG_PIXEL_DUTY_CYCLE:
-			// Convert from fixed point 0.16, convert to 8.8 and then multiply.
-			cur_pixel_duty = ((value>>8) * cur_pixel_width)>>8;
-			// Clamp value
-			if (cur_pixel_duty <= 0)
-				cur_pixel_duty = 1u;
+		case REG_PIXEL_DUTY:
+			// Find number of pixel fractions in 8.8 and then convert to integer.
+			led_set_pixel_duty((value * led_get_pixel_width())>>8);
 			break;
 	}
 }
@@ -305,7 +352,7 @@ cmd_loop(void)
 						{
 							unsigned int reg_value = cmd_read_reg((reg_t)immediate);
 							Serial.write((unsigned char)(reg_value>>8u));
-							Serial.write((unsigned char)(reg_value&0x0Fu));
+							Serial.write((unsigned char)(reg_value&0xFFu));
 						}
 						break;
 					
@@ -363,8 +410,7 @@ cmd_loop(void)
 				break;
 			}
 			
-			// Block until the number of free spaces is equal to the size of the
-			// buffer
+			// Block until the buffer is empty
 			if (is_led_buffer_empty()) {
 				Serial.write(0xFF);
 				cmd_state = CMD_STATE_IDLE;
@@ -413,6 +459,6 @@ void setup() {
 
 
 void loop() {
-	cmd_loop();
 	led_loop();
+	cmd_loop();
 }
