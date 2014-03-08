@@ -105,6 +105,21 @@ LED_WIDE_BOARD_THICKNESS = 5.5;
 LED_SUPPORT_WIDTH = 18;
 LED_BOARD_WIDTH = 39;
 
+// Thickness of the panels holding circuit boards
+CIRCUIT_HOLDER_THICKNESS = 5;
+
+// Size of cable-ties
+CABLE_TIE_THICKNESS = 2.0;
+CABLE_TIE_WIDTH = 4.0;
+
+// Screws and standoffs
+SCREW_RADIUS = 2;
+STANDOFF_RADIUS = 4;
+STANDOFF_HEIGHT = 3;
+
+// Clamp thickness for board holders
+CLAMP_THICKNESS = 2.5;
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Colour Palette
@@ -685,6 +700,82 @@ module led_holder(thickness = DOWEL_PRINTED_SOCKET_DEPTH) {
 }
 
 
+module screw_circuit_holder(width, height, screw_positions, num_cable_ties=2) {
+	difference() {
+		union() {
+			// The plate itself
+			cube([width,height,CIRCUIT_HOLDER_THICKNESS]);
+			
+			// Standoffs
+			for (position = screw_positions) {
+				translate([position[0], position[1], CIRCUIT_HOLDER_THICKNESS])
+				cylinder(r = STANDOFF_RADIUS, h = STANDOFF_HEIGHT);
+			}
+		}
+		
+		// Groove for the dowel rod
+		translate([width/2, -0.5, CIRCUIT_HOLDER_THICKNESS-DOWEL_PRINTED_SOCKET_BLOCK/2])
+			rotate([-90,0,0])
+				cylinder(r = DOWEL_PRINTED_SOCKET_RADIUS, h=height+1);
+		
+		// Slots for cable-tie
+		for (i = [1:num_cable_ties]) {
+			translate([width/2 - DOWEL_PRINTED_SOCKET_RADIUS - CABLE_TIE_THICKNESS, i*(height/(num_cable_ties+1)) ,-0.5])
+				cube([CABLE_TIE_THICKNESS, CABLE_TIE_WIDTH, CIRCUIT_HOLDER_THICKNESS+1]);
+			translate([width/2 + DOWEL_PRINTED_SOCKET_RADIUS, i*(height/(num_cable_ties+1)), -0.5])
+				cube([CABLE_TIE_THICKNESS, CABLE_TIE_WIDTH, CIRCUIT_HOLDER_THICKNESS+1]);
+		}
+		
+		// Screw holes
+		for (position = screw_positions) {
+			translate([position[0], position[1], -0.5])
+			cylinder(r = SCREW_RADIUS, h = CIRCUIT_HOLDER_THICKNESS + STANDOFF_HEIGHT + 1);
+		}
+	}
+}
+
+
+module clamp_circuit_holder(width, height, board_width, board_height, clamp_width, clamp_height, clamp_offset_x, clamp_offset_y, num_cable_ties=2) {
+	difference() {
+		union() {
+			// The plate itself
+			cube([width,height,CIRCUIT_HOLDER_THICKNESS]);
+			
+			
+			// The mounting clamp
+			translate([ clamp_offset_x
+			          , clamp_offset_y
+			          , CIRCUIT_HOLDER_THICKNESS
+			          ])
+				cube([ (width-board_width)/2 + clamp_width
+				     , (height-board_height)/2 + clamp_height
+				     , STANDOFF_HEIGHT + LED_BOARD_THICKNESS + CLAMP_THICKNESS
+				     ]);
+		}
+		
+		// Groove for the dowel rod
+		translate([width/2, -0.5, CIRCUIT_HOLDER_THICKNESS-DOWEL_PRINTED_SOCKET_BLOCK/2])
+			rotate([-90,0,0])
+				cylinder(r = DOWEL_PRINTED_SOCKET_RADIUS, h=height+1);
+		
+		// Slots for cable-tie
+		for (i = [1:num_cable_ties]) {
+			translate([width/2 - DOWEL_PRINTED_SOCKET_RADIUS - CABLE_TIE_THICKNESS, i*(height/(num_cable_ties+1)) ,-0.5])
+				cube([CABLE_TIE_THICKNESS, CABLE_TIE_WIDTH, CIRCUIT_HOLDER_THICKNESS+1]);
+			translate([width/2 + DOWEL_PRINTED_SOCKET_RADIUS, i*(height/(num_cable_ties+1)), -0.5])
+				cube([CABLE_TIE_THICKNESS, CABLE_TIE_WIDTH, CIRCUIT_HOLDER_THICKNESS+1]);
+		}
+		
+		// Board
+		translate([ width/2 - board_width/2
+		          , height/2 - board_height/2
+		          , CIRCUIT_HOLDER_THICKNESS + STANDOFF_HEIGHT
+		          ])
+			cube([board_width, board_height, LED_BOARD_THICKNESS]);
+	}
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 // Printable Parts (for STL Export)
 ////////////////////////////////////////////////////////////////////////////////
@@ -824,4 +915,14 @@ module motor_assembly() {
 
 //motor_assembly();
 
-print_led_holder();
+// Motor driver
+//screw_circuit_holder(40,36.5, [[5+0,5+0], [5+30,5+0], [5+0,5+26.5], [5+30,5+26.5]]);
+
+// Arduino
+//screw_circuit_holder(27.9+15.2+10,50.8+10, [[5+0,5+0], [5+27.9+15.2,5+50.8]]);
+
+// Junction Board half
+intersection() {
+	clamp_circuit_holder(10+33, 10+47, 33, 47, 15, 3.5, 5 + 33-15, 0, 3);
+	cube([10+33, 25, 100]);
+}
