@@ -48,10 +48,9 @@ class LineOfLife(object):
 		for _ in range(100):
 			self._cmd_no_operation()
 		
-		# Absorb any incoming unconsumed bytes
-		if hasattr(self.pipe, "inWaiting"):
-			while self.pipe.inWaiting():
-				self.pipe.read(1)
+		# Ignore any incoming unconsumed bytes
+		if hasattr(self.pipe, "flushInput"):
+			self.pipe.flushInput()
 		
 		self._cmd_ping()
 	
