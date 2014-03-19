@@ -2,12 +2,14 @@
 
 """
 A quick-and-dirty 1D cellular automata demo. Displays randomly initialised
-automata with random rules.
+automata with random rules. If rules are supplied as arguments, the displayed
+rules will be selected from the supplied list of rules.
 
 See http://en.wikipedia.org/wiki/Elementary_cellular_automaton for more details
 of this class of automata.
 """
 
+import sys
 import serial
 import random
 
@@ -29,8 +31,11 @@ lol.pixel_duty = 1.0
 mask = (1l<<lol.display_height)-1
 
 while True:
-	# Pick a random rule to show
-	rule = int(random.random()*0xFF)
+	# Pick a random rule to show, or one selected on the command line
+	if len(sys.argv) > 1:
+		rule = random.choice(map(int, sys.argv[1:]))
+	else:
+		rule = int(random.random()*0xFF)
 	
 	# Announce the automata
 	for line in text_to_lol("Presenting Rule %d"%rule, lol.display_height, rotate=True):
@@ -44,7 +49,7 @@ while True:
 		state = 1<<(lol.display_height/2)
 	
 	# Run this automata for one quarter of a rotation
-	for _ in range(lol.display_width/4):
+	for _ in range(lol.display_width/2):
 		# Calculate the new automata state
 		new_state = 0l
 		state <<= 1
