@@ -11,7 +11,8 @@ of this class of automata.
 import serial
 import random
 
-from line_of_life import LineOfLife
+from line_of_life.driver import LineOfLife
+from line_of_life.bitmap import text_to_lol
 
 # Connect to the display
 ser = serial.Serial(port = "/dev/ttyUSB0", baudrate = 115200, timeout = 3)
@@ -31,15 +32,17 @@ while True:
 	# Pick a random rule to show
 	rule = int(random.random()*0xFF)
 	
+	# Announce the automata
+	for line in text_to_lol("Presenting Rule %d"%rule, lol.display_height, rotate=True):
+		lol.push_line(line)
+	lol.push_line([0] * lol.display_height)
 	
-	# Flush the buffer, that way the print statement will not happen until the
-	# next automata is actually due to appear on the display
-	lol.flush_buffer()
-	print "Presenting Rule %d"%rule
+	# Pick randomly between a random initial state and a single seed pixel
+	if random.random() < 0.5:
+		state = sum(1l<<n for n in range(lol.display_height) if random.random()<0.5)
+	else:
+		state = 1<<(lol.display_height/2)
 	
-	# Random initial state
-	state = sum(1l<<n for n in range(lol.display_height) if random.random()<0.5)
-LineOfLife interface.
 	# Run this automata for one quarter of a rotation
 	for _ in range(lol.display_width/4):
 		# Calculate the new automata state

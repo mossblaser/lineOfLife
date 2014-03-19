@@ -4,6 +4,8 @@
 Utilites for displaying bitmaps on the display.
 """
 
+import os
+
 import Image, ImageDraw, ImageFont
 
 
@@ -66,7 +68,12 @@ def text_to_lol(string, display_height, rotate = False, center = True, text_alig
 	"""
 	# Load the font
 	if font is None:
-		pil_font = ImageFont.load_default()
+		# Try to use the hd44780 font included with the package, falling back to the
+		# system default font.
+		try:
+			pil_font = ImageFont.truetype(os.path.join(os.path.dirname(__file__),"hd44780.ttf"), font_size)
+		except IOError:
+			pil_font = ImageFont.load_default()
 	else:
 		pil_font = ImageFont.truetype(font, font_size)
 	
