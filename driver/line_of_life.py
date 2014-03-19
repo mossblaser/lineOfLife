@@ -48,6 +48,11 @@ class LineOfLife(object):
 		for _ in range(100):
 			self._cmd_no_operation()
 		
+		# Absorb any incoming unconsumed bytes
+		if hasattr(self.pipe, "inWaiting"):
+			while self.pipe.inWaiting():
+				self.pipe.read(1)
+		
 		self._cmd_ping()
 	
 	
@@ -416,13 +421,15 @@ if __name__=="__main__":
 	lol = LineOfLife(ser)
 	
 	lol.pixel_aspect_ratio = 1
-	lol.pixel_duty = 0.5
+	lol.pixel_duty = 1.0
 	
 	# A quick-and-dirty 1D cellular automata
 	mask  = (1l<<lol.display_height)-1
 	
 	while True:
 		# Random rule
+		rule = random.choice([30, 90, 110, 184])
+		rule = random.choice([110])
 		rule = int(random.random()*0xFF)
 		
 		print "Presenting Rule %d"%rule
