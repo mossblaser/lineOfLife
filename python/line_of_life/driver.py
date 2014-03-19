@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
 """
-An implementation of and library for the host interface to the Line of Life
-controller.
+An implementation of the host interface to the Line of Life controller.
 """
 
 import random
