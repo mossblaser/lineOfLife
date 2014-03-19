@@ -606,172 +606,180 @@ module motor_base_bearing_fitting() {
 
 
 module led_grip(thickness = LED_GRIP_THICKNESS) {
-	difference() {
-		union() {
-			// Rounded ends
-			translate([0,-DOUBLE_SHAFT_SEP/2,0])
-			cylinder(r = DOWEL_PRINTED_SOCKET_BLOCK/2, h = thickness);
-			translate([0,DOUBLE_SHAFT_SEP/2,0])
-			cylinder(r = DOWEL_PRINTED_SOCKET_BLOCK/2, h = thickness);
-			
-			// Arms
-			translate([0, -DOUBLE_SHAFT_SEP/2-DOWEL_PRINTED_SOCKET_BLOCK/2, 0]) {
-				cube([LED_DISTANCE-LED_BOARD_THICKNESS,DOWEL_PRINTED_SOCKET_BLOCK, thickness]);
-				translate([0,DOUBLE_SHAFT_SEP,0])
-				cube([LED_DISTANCE-LED_BOARD_THICKNESS,DOWEL_PRINTED_SOCKET_BLOCK, thickness]);
+	color(COLOUR_3D_PRINTED) {
+		difference() {
+			union() {
+				// Rounded ends
+				translate([0,-DOUBLE_SHAFT_SEP/2,0])
+				cylinder(r = DOWEL_PRINTED_SOCKET_BLOCK/2, h = thickness);
+				translate([0,DOUBLE_SHAFT_SEP/2,0])
+				cylinder(r = DOWEL_PRINTED_SOCKET_BLOCK/2, h = thickness);
+				
+				// Arms
+				translate([0, -DOUBLE_SHAFT_SEP/2-DOWEL_PRINTED_SOCKET_BLOCK/2, 0]) {
+					cube([LED_DISTANCE-LED_BOARD_THICKNESS,DOWEL_PRINTED_SOCKET_BLOCK, thickness]);
+					translate([0,DOUBLE_SHAFT_SEP,0])
+					cube([LED_DISTANCE-LED_BOARD_THICKNESS,DOWEL_PRINTED_SOCKET_BLOCK, thickness]);
+				}
 			}
+			
+			// Drill out dowel holes
+			translate([0,DOUBLE_SHAFT_SEP/2,-0.5])
+			cylinder(r = DOWEL_PRINTED_SOCKET_RADIUS+0.25, h = thickness+1);
+			translate([0,-DOUBLE_SHAFT_SEP/2,-0.5])
+			cylinder(r = DOWEL_PRINTED_SOCKET_RADIUS+0.25, h = thickness+1);
 		}
 		
-		// Drill out dowel holes
-		translate([0,DOUBLE_SHAFT_SEP/2,-0.5])
-		cylinder(r = DOWEL_PRINTED_SOCKET_RADIUS+0.25, h = thickness+1);
-		translate([0,-DOUBLE_SHAFT_SEP/2,-0.5])
-		cylinder(r = DOWEL_PRINTED_SOCKET_RADIUS+0.25, h = thickness+1);
-	}
-	
-	// Grip ends
-	translate([LED_DISTANCE - LED_BOARD_THICKNESS/2,0,0])
-	difference() {
-		hull() {
-			translate([0,LED_BOARD_WIDTH/2,0])
-			cylinder(r = LED_ARM_THICKNESS + LED_BOARD_THICKNESS, h = thickness);
-			translate([0,-LED_BOARD_WIDTH/2,0])
-			cylinder(r = LED_ARM_THICKNESS + LED_BOARD_THICKNESS, h = thickness);
+		// Grip ends
+		translate([LED_DISTANCE - LED_BOARD_THICKNESS/2,0,0])
+		difference() {
+			hull() {
+				translate([0,LED_BOARD_WIDTH/2,0])
+				cylinder(r = LED_ARM_THICKNESS + LED_BOARD_THICKNESS, h = thickness);
+				translate([0,-LED_BOARD_WIDTH/2,0])
+				cylinder(r = LED_ARM_THICKNESS + LED_BOARD_THICKNESS, h = thickness);
+			}
+			
+			// Cut out front
+			translate([0,-LED_BOARD_WIDTH/2,-0.5])
+			cube([LED_BOARD_THICKNESS+1,LED_BOARD_WIDTH,thickness+1]);
+			
+			// Cut out slot
+			translate([0,-LED_BOARD_WIDTH/2 + LED_ARM_OVERHANG,-0.5])
+			cube([LED_ARM_THICKNESS+LED_BOARD_THICKNESS+1,LED_BOARD_WIDTH-2*LED_ARM_OVERHANG,thickness+1]);
 		}
-		
-		// Cut out front
-		translate([0,-LED_BOARD_WIDTH/2,-0.5])
-		cube([LED_BOARD_THICKNESS+1,LED_BOARD_WIDTH,thickness+1]);
-		
-		// Cut out slot
-		translate([0,-LED_BOARD_WIDTH/2 + LED_ARM_OVERHANG,-0.5])
-		cube([LED_ARM_THICKNESS+LED_BOARD_THICKNESS+1,LED_BOARD_WIDTH-2*LED_ARM_OVERHANG,thickness+1]);
 	}
 }
 
 
 module led_holder(thickness = DOWEL_PRINTED_SOCKET_DEPTH) {
-	difference() {
-		union() {
-			// Rounded ends
-			translate([0,-DOUBLE_SHAFT_SEP/2,0])
-			cylinder(r = DOWEL_PRINTED_SOCKET_BLOCK/2, h = thickness);
-			translate([0,DOUBLE_SHAFT_SEP/2,0])
-			cylinder(r = DOWEL_PRINTED_SOCKET_BLOCK/2, h = thickness);
-			
-			// Arms
-			translate([0, -DOUBLE_SHAFT_SEP/2-DOWEL_PRINTED_SOCKET_BLOCK/2, 0]) {
-				cube([LED_DISTANCE-LED_WIDE_BOARD_THICKNESS,DOWEL_PRINTED_SOCKET_BLOCK, thickness]);
-				translate([0,DOUBLE_SHAFT_SEP,0])
-				cube([LED_DISTANCE-LED_WIDE_BOARD_THICKNESS,DOWEL_PRINTED_SOCKET_BLOCK, thickness]);
-			}
-		}
-		
-		// Drill out dowel holes
-		translate([0,DOUBLE_SHAFT_SEP/2,-0.5])
-		cylinder(r = DOWEL_PRINTED_SOCKET_RADIUS+0.25, h = thickness+1);
-		translate([0,-DOUBLE_SHAFT_SEP/2,-0.5])
-		cylinder(r = DOWEL_PRINTED_SOCKET_RADIUS+0.25, h = thickness+1);
-	}
-	
-	// Grip ends
-	translate([LED_DISTANCE - LED_WIDE_BOARD_THICKNESS/2,0,0]) {
+	color(COLOUR_3D_PRINTED) {
 		difference() {
-			hull() {
-				translate([0,LED_BOARD_WIDTH/2,0])
-				cylinder(r = LED_ARM_THICKNESS + LED_WIDE_BOARD_THICKNESS, h = thickness);
-				translate([0,-LED_BOARD_WIDTH/2,0])
-				cylinder(r = LED_ARM_THICKNESS + LED_WIDE_BOARD_THICKNESS, h = thickness);
+			union() {
+				// Rounded ends
+				translate([0,-DOUBLE_SHAFT_SEP/2,0])
+				cylinder(r = DOWEL_PRINTED_SOCKET_BLOCK/2, h = thickness);
+				translate([0,DOUBLE_SHAFT_SEP/2,0])
+				cylinder(r = DOWEL_PRINTED_SOCKET_BLOCK/2, h = thickness);
+				
+				// Arms
+				translate([0, -DOUBLE_SHAFT_SEP/2-DOWEL_PRINTED_SOCKET_BLOCK/2, 0]) {
+					cube([LED_DISTANCE-LED_WIDE_BOARD_THICKNESS,DOWEL_PRINTED_SOCKET_BLOCK, thickness]);
+					translate([0,DOUBLE_SHAFT_SEP,0])
+					cube([LED_DISTANCE-LED_WIDE_BOARD_THICKNESS,DOWEL_PRINTED_SOCKET_BLOCK, thickness]);
+				}
 			}
 			
-			// Cut out front
-			translate([0,-LED_BOARD_WIDTH/2,-0.5])
-			cube([LED_WIDE_BOARD_THICKNESS+1,LED_BOARD_WIDTH,thickness+1]);
-			
-			// Cut out slot
-			translate([0,-LED_BOARD_WIDTH/2 + LED_ARM_OVERHANG,-0.5])
-			cube([LED_ARM_THICKNESS+LED_WIDE_BOARD_THICKNESS+1,LED_BOARD_WIDTH-2*LED_ARM_OVERHANG,thickness+1]);
+			// Drill out dowel holes
+			translate([0,DOUBLE_SHAFT_SEP/2,-0.5])
+			cylinder(r = DOWEL_PRINTED_SOCKET_RADIUS+0.25, h = thickness+1);
+			translate([0,-DOUBLE_SHAFT_SEP/2,-0.5])
+			cylinder(r = DOWEL_PRINTED_SOCKET_RADIUS+0.25, h = thickness+1);
 		}
 		
-		// Shelf
-		translate([0,LED_BOARD_WIDTH/2 - LED_SUPPORT_WIDTH,0])
-		cube([LED_ARM_THICKNESS + LED_WIDE_BOARD_THICKNESS, LED_SUPPORT_WIDTH, LED_GRIP_THICKNESS]);
+		// Grip ends
+		translate([LED_DISTANCE - LED_WIDE_BOARD_THICKNESS/2,0,0]) {
+			difference() {
+				hull() {
+					translate([0,LED_BOARD_WIDTH/2,0])
+					cylinder(r = LED_ARM_THICKNESS + LED_WIDE_BOARD_THICKNESS, h = thickness);
+					translate([0,-LED_BOARD_WIDTH/2,0])
+					cylinder(r = LED_ARM_THICKNESS + LED_WIDE_BOARD_THICKNESS, h = thickness);
+				}
+				
+				// Cut out front
+				translate([0,-LED_BOARD_WIDTH/2,-0.5])
+				cube([LED_WIDE_BOARD_THICKNESS+1,LED_BOARD_WIDTH,thickness+1]);
+				
+				// Cut out slot
+				translate([0,-LED_BOARD_WIDTH/2 + LED_ARM_OVERHANG,-0.5])
+				cube([LED_ARM_THICKNESS+LED_WIDE_BOARD_THICKNESS+1,LED_BOARD_WIDTH-2*LED_ARM_OVERHANG,thickness+1]);
+			}
+			
+			// Shelf
+			translate([0,LED_BOARD_WIDTH/2 - LED_SUPPORT_WIDTH,0])
+			cube([LED_ARM_THICKNESS + LED_WIDE_BOARD_THICKNESS, LED_SUPPORT_WIDTH, LED_GRIP_THICKNESS]);
+		}
 	}
 }
 
 
 module screw_circuit_holder(width, height, screw_positions, num_cable_ties=2) {
-	difference() {
-		union() {
-			// The plate itself
-			cube([width,height,CIRCUIT_HOLDER_THICKNESS]);
-			
-			// Standoffs
-			for (position = screw_positions) {
-				translate([position[0], position[1], CIRCUIT_HOLDER_THICKNESS])
-				cylinder(r = STANDOFF_RADIUS, h = STANDOFF_HEIGHT);
+	color(COLOUR_3D_PRINTED) {
+		difference() {
+			union() {
+				// The plate itself
+				cube([width,height,CIRCUIT_HOLDER_THICKNESS]);
+				
+				// Standoffs
+				for (position = screw_positions) {
+					translate([position[0], position[1], CIRCUIT_HOLDER_THICKNESS])
+					cylinder(r = STANDOFF_RADIUS, h = STANDOFF_HEIGHT);
+				}
 			}
-		}
-		
-		// Groove for the dowel rod
-		translate([width/2, -0.5, CIRCUIT_HOLDER_THICKNESS-DOWEL_PRINTED_SOCKET_BLOCK/2])
-			rotate([-90,0,0])
-				cylinder(r = DOWEL_PRINTED_SOCKET_RADIUS, h=height+1);
-		
-		// Slots for cable-tie
-		for (i = [1:num_cable_ties]) {
-			translate([width/2 - DOWEL_PRINTED_SOCKET_RADIUS - CABLE_TIE_THICKNESS, i*(height/(num_cable_ties+1)) ,-0.5])
-				cube([CABLE_TIE_THICKNESS, CABLE_TIE_WIDTH, CIRCUIT_HOLDER_THICKNESS+1]);
-			translate([width/2 + DOWEL_PRINTED_SOCKET_RADIUS, i*(height/(num_cable_ties+1)), -0.5])
-				cube([CABLE_TIE_THICKNESS, CABLE_TIE_WIDTH, CIRCUIT_HOLDER_THICKNESS+1]);
-		}
-		
-		// Screw holes
-		for (position = screw_positions) {
-			translate([position[0], position[1], -0.5])
-			cylinder(r = SCREW_RADIUS, h = CIRCUIT_HOLDER_THICKNESS + STANDOFF_HEIGHT + 1);
+			
+			// Groove for the dowel rod
+			translate([width/2, -0.5, CIRCUIT_HOLDER_THICKNESS-DOWEL_PRINTED_SOCKET_BLOCK/2])
+				rotate([-90,0,0])
+					cylinder(r = DOWEL_PRINTED_SOCKET_RADIUS, h=height+1);
+			
+			// Slots for cable-tie
+			for (i = [1:num_cable_ties]) {
+				translate([width/2 - DOWEL_PRINTED_SOCKET_RADIUS - CABLE_TIE_THICKNESS, i*(height/(num_cable_ties+1)) ,-0.5])
+					cube([CABLE_TIE_THICKNESS, CABLE_TIE_WIDTH, CIRCUIT_HOLDER_THICKNESS+1]);
+				translate([width/2 + DOWEL_PRINTED_SOCKET_RADIUS, i*(height/(num_cable_ties+1)), -0.5])
+					cube([CABLE_TIE_THICKNESS, CABLE_TIE_WIDTH, CIRCUIT_HOLDER_THICKNESS+1]);
+			}
+			
+			// Screw holes
+			for (position = screw_positions) {
+				translate([position[0], position[1], -0.5])
+				cylinder(r = SCREW_RADIUS, h = CIRCUIT_HOLDER_THICKNESS + STANDOFF_HEIGHT + 1);
+			}
 		}
 	}
 }
 
 
 module clamp_circuit_holder(width, height, board_width, board_height, clamp_width, clamp_height, clamp_offset_x, clamp_offset_y, num_cable_ties=2) {
-	difference() {
-		union() {
-			// The plate itself
-			cube([width,height,CIRCUIT_HOLDER_THICKNESS]);
+	color(COLOUR_3D_PRINTED) {
+		difference() {
+			union() {
+				// The plate itself
+				cube([width,height,CIRCUIT_HOLDER_THICKNESS]);
+				
+				
+				// The mounting clamp
+				translate([ clamp_offset_x
+				          , clamp_offset_y
+				          , CIRCUIT_HOLDER_THICKNESS
+				          ])
+					cube([ (width-board_width)/2 + clamp_width
+					     , (height-board_height)/2 + clamp_height
+					     , STANDOFF_HEIGHT + LED_BOARD_THICKNESS + CLAMP_THICKNESS
+					     ]);
+			}
 			
+			// Groove for the dowel rod
+			translate([width/2, -0.5, CIRCUIT_HOLDER_THICKNESS-DOWEL_PRINTED_SOCKET_BLOCK/2])
+				rotate([-90,0,0])
+					cylinder(r = DOWEL_PRINTED_SOCKET_RADIUS, h=height+1);
 			
-			// The mounting clamp
-			translate([ clamp_offset_x
-			          , clamp_offset_y
-			          , CIRCUIT_HOLDER_THICKNESS
+			// Slots for cable-tie
+			for (i = [1:num_cable_ties]) {
+				translate([width/2 - DOWEL_PRINTED_SOCKET_RADIUS - CABLE_TIE_THICKNESS, i*(height/(num_cable_ties+1)) ,-0.5])
+					cube([CABLE_TIE_THICKNESS, CABLE_TIE_WIDTH, CIRCUIT_HOLDER_THICKNESS+1]);
+				translate([width/2 + DOWEL_PRINTED_SOCKET_RADIUS, i*(height/(num_cable_ties+1)), -0.5])
+					cube([CABLE_TIE_THICKNESS, CABLE_TIE_WIDTH, CIRCUIT_HOLDER_THICKNESS+1]);
+			}
+			
+			// Board
+			translate([ width/2 - board_width/2
+			          , height/2 - board_height/2
+			          , CIRCUIT_HOLDER_THICKNESS + STANDOFF_HEIGHT
 			          ])
-				cube([ (width-board_width)/2 + clamp_width
-				     , (height-board_height)/2 + clamp_height
-				     , STANDOFF_HEIGHT + LED_BOARD_THICKNESS + CLAMP_THICKNESS
-				     ]);
+				cube([board_width, board_height, LED_BOARD_THICKNESS]);
 		}
-		
-		// Groove for the dowel rod
-		translate([width/2, -0.5, CIRCUIT_HOLDER_THICKNESS-DOWEL_PRINTED_SOCKET_BLOCK/2])
-			rotate([-90,0,0])
-				cylinder(r = DOWEL_PRINTED_SOCKET_RADIUS, h=height+1);
-		
-		// Slots for cable-tie
-		for (i = [1:num_cable_ties]) {
-			translate([width/2 - DOWEL_PRINTED_SOCKET_RADIUS - CABLE_TIE_THICKNESS, i*(height/(num_cable_ties+1)) ,-0.5])
-				cube([CABLE_TIE_THICKNESS, CABLE_TIE_WIDTH, CIRCUIT_HOLDER_THICKNESS+1]);
-			translate([width/2 + DOWEL_PRINTED_SOCKET_RADIUS, i*(height/(num_cable_ties+1)), -0.5])
-				cube([CABLE_TIE_THICKNESS, CABLE_TIE_WIDTH, CIRCUIT_HOLDER_THICKNESS+1]);
-		}
-		
-		// Board
-		translate([ width/2 - board_width/2
-		          , height/2 - board_height/2
-		          , CIRCUIT_HOLDER_THICKNESS + STANDOFF_HEIGHT
-		          ])
-			cube([board_width, board_height, LED_BOARD_THICKNESS]);
 	}
 }
 
@@ -854,6 +862,25 @@ module print_led_holder() {
 	led_holder();
 }
 
+// Mount for the Arduino.
+module print_arduino_holder() {
+	screw_circuit_holder(27.9+15.2+10,50.8+10, [[5+0,5+0], [5+27.9+15.2,5+50.8]]);
+}
+
+// Mount for the motor driver board.
+module print_motor_driver_holder() {
+	screw_circuit_holder(40,36.5, [[5+0,5+0], [5+30,5+0], [5+0,5+26.5], [5+30,5+26.5]]);
+}
+
+// Two halves of the mount for the junction board
+module print_junction_board_holder() {
+	color(COLOUR_3D_PRINTED)
+	intersection() {
+		clamp_circuit_holder(10+33, 10+47, 33, 47, 15, 3.5, 5 + 33-15, 0, 3);
+		cube([10+33, 25, 100]);
+	}
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Assembled Model
@@ -907,22 +934,60 @@ module motor_assembly() {
 
 
 ////////////////////////////////////////////////////////////////////////////////
+// All components laid out
+////////////////////////////////////////////////////////////////////////////////
+
+module all_components() {
+	col0 = 0;
+	col1 = 120;
+	col2 = 200;
+	col3 = 300;
+	col4 = 400;
+	
+	for (x = [0 : 5])
+		translate([col0, x*47, 0])
+			rotate([0,0,45])
+				print_base_display_grip();
+	for (x = [6 : 8])
+		translate([col0, x*47, 0])
+			rotate([0,0,45])
+				print_top_display_grip();
+	
+	translate([col1, 0, 0])
+		print_top_axel();
+	translate([col1, 100, 0])
+		print_base_axel();
+	translate([col1, 215, 0])
+		print_motor_base();
+	translate([col1, 295, 0])
+		print_motor_base_bearing_fitting();
+	translate([col1, 375, 0])
+		print_top_bearing_grip();
+	
+	for (x = [0 : 3])
+		translate([col2, x*75, 0])
+			print_bracket();
+	for (x = [4 : 5])
+		translate([col2, x*75, 0])
+			print_double_bracket();
+	
+	translate([col3, 0, 0])
+		print_led_holder();
+	for (x = [1 : 3])
+		translate([col3, x*60, 0])
+			print_led_grip();
+	translate([col3, 220, 0])
+		print_arduino_holder();
+	translate([col3, 290, 0])
+		print_motor_driver_holder();
+	translate([col3, 340, 0])
+		print_junction_board_holder();
+	translate([col3, 380, 0])
+		print_junction_board_holder();
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // What's displayed
 ////////////////////////////////////////////////////////////////////////////////
 
-//translate([0,0,MOTOR_ASSEMBLY_HEIGHT - BEARING_THICKNESS])
-//	display_assembly();
-
-//motor_assembly();
-
-// Motor driver
-//screw_circuit_holder(40,36.5, [[5+0,5+0], [5+30,5+0], [5+0,5+26.5], [5+30,5+26.5]]);
-
-// Arduino
-//screw_circuit_holder(27.9+15.2+10,50.8+10, [[5+0,5+0], [5+27.9+15.2,5+50.8]]);
-
-// Junction Board half
-intersection() {
-	clamp_circuit_holder(10+33, 10+47, 33, 47, 15, 3.5, 5 + 33-15, 0, 3);
-	cube([10+33, 25, 100]);
-}
+all_components();
