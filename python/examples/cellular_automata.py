@@ -39,7 +39,7 @@ while True:
 	
 	# Random initial state
 	state = sum(1l<<n for n in range(lol.display_height) if random.random()<0.5)
-	
+LineOfLife interface.
 	# Run this automata for one quarter of a rotation
 	for _ in range(lol.display_width/4):
 		# Calculate the new automata state
