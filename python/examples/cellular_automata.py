@@ -12,12 +12,14 @@ of this class of automata.
 import sys
 import serial
 import random
+import time
 
 from line_of_life.driver import LineOfLife
 from line_of_life.bitmap import text_to_lol
 
 # Connect to the display
 ser = serial.Serial(port = "/dev/ttyUSB0", baudrate = 115200, timeout = 3)
+time.sleep(3)
 lol = LineOfLife(ser)
 
 # Clear the display's current buffer to start displaying the new automata

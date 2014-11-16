@@ -7,7 +7,8 @@ Display a bitmap given on the command line on the display.
 import sys
 import serial
 import random
-import Image
+
+from PIL import Image
 
 from line_of_life.driver import LineOfLife
 from line_of_life.bitmap import pil_to_lol

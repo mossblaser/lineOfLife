@@ -6,7 +6,7 @@ Utilites for displaying bitmaps on the display.
 
 import os
 
-import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont
 
 
 def pil_to_lol(im, display_height, center = True):

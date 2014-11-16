@@ -2,6 +2,7 @@ include <wedge.scad>;
 
 // Minimum angle for fragmenting curves
 $fa = 1;
+//$fs = 0.5;
 
 PI = 3.1415927;
 
