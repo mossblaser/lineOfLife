@@ -254,9 +254,9 @@ void loop() {
 	if (Serial.available()) {
 		// Get the current string and pad with spaces and a null terminator.
 		unsigned int num_chars = Serial.readBytesUntil('\n', str, str_max_len-2);
+		str[num_chars+0] = ' ';
 		str[num_chars+1] = ' ';
-		str[num_chars+2] = ' ';
-		str[num_chars+3] = '\0';
+		str[num_chars+2] = '\0';
 		
 		Serial.println("OK");
 	}
