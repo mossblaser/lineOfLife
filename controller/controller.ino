@@ -1,442 +1,228 @@
 /**
- * Controller for the Line of Life display.
+ * Controller for the "Bar of Life" hand-held UV LED array.
  */
 
 #include <limits.h>
 
+#include <avr/pgmspace.h>
 #include <SPI.h>
 
 #include "TimerOne.h"
 
-#include "controller.h"
+////////////////////////////////////////////////////////////////////////////////
+// Font selection
+////////////////////////////////////////////////////////////////////////////////
+
+// Uncomment one of these to select the font to use. These files contain an
+// ASCII-art preview within the source file.
+// 
+// Fonts can be generated using:
+//
+//   python font_gen.py 40 40 "Myriad Pro" FONT_ > file_name.h
+//                      |  |   |           |       |
+//                      |  |   |           |       '--- Output filename
+//                      |  |   |           '-- Prefix used in the code
+//                      |  |   |               (must be FONT_)
+//                      |  |   '-- Font name
+//                      |  '-- Number of LEDs (must be 40)
+//                      '-- Height of font (0 - 40)
+
+// Myriad Pro: A Helvetica-like sans-serif font
+#include "myriad_pro_large.h"
+//#include "myriad_pro_medium.h"
+//#include "myriad_pro_small.h"
+
+// Adobe Garamond Pro: A Times New Roman-like serifed font
+//#include "adobe_garamond_pro_large.h"
+//#include "adobe_garamond_pro_medium.h"
+//#include "adobe_garamond_pro_small.h"
+
+// Heathchote: My handwriting as a teenager...
+//#include "heathchote_large.h"
+//#include "heathchote_medium.h"
+//#include "heathchote_small.h"
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// Stepper Motor Driver
+// Controller Parameters
 ////////////////////////////////////////////////////////////////////////////////
 
-// Accumulated number of steps taken.
-static volatile unsigned char num_steps;
+// Scales the pot value (0-1023) into miliseconds between pixels
+#define PIXEL_SPEED_SCALING_FACTOR 0.5
 
-// Current stepper motor state
-static int cur_motor_state = 0;
+// Baudrate of the serial communications with the host
+#define BAUD_RATE 115200
+
+// Resolution of the display
+#define PIXELS   40ul
 
 
-static void
-on_timer_interrupt(void)
-{
-	// Step the motor
-	if (STEPPER_CLOCKWISE) {
-		for (int i = 0; i < 4; i++)
-			digitalWrite(MOTOR_PINS[4-i-1], (MOTOR_STATES[cur_motor_state] & 1<<i)!=0);
-	} else {
-		for (int i = 0; i < 4; i++)
-			digitalWrite(MOTOR_PINS[i], (MOTOR_STATES[cur_motor_state] & 1<<i)!=0);
+// Polling period of input signals
+#define INPUT_POLL_MICROSECONDS 1000
+
+// Number of consecutive polls before the uswitch is considered pressed/released
+#define USWITCH_HYST_PRESS 100
+#define USWITCH_HYST_RELEASE 1000
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Pin definitions
+////////////////////////////////////////////////////////////////////////////////
+
+// Control pins for LED strip
+#define nOE_PIN 9
+#define LE_PIN  10
+//      MOSI    11
+//      MISO    12
+//      CLK     13
+
+// Surface-contact microswitch
+#define USWITCH_PIN 8
+
+// Optical-clock LDR pin
+#define OCLK_LDR_PIN 0 // Analog
+
+// Optical-clock LED pin
+#define OCLK_LED_PIN A1
+
+// Speed modifier pot pin
+#define SPEED_POT_PIN 2 // Analog
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Global flags
+////////////////////////////////////////////////////////////////////////////////
+
+// Should output be produced?
+bool run = false;
+
+// Number of usec between optical clock cycles. Not valid while run is
+// false.
+unsigned long oclk_period = 0;
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Microswitch polling
+////////////////////////////////////////////////////////////////////////////////
+
+// Control run-state using the uswitch with heavy-handed hysteresis
+void poll_uswitch() {
+	static bool last_uswitch_state = false;
+	static int  uswitch_hyst_count = 0;
+	bool uswitch_state = !digitalRead(USWITCH_PIN);
+	
+	if (last_uswitch_state == uswitch_state) {
+		uswitch_hyst_count = 0;
+	} else if (last_uswitch_state == false && uswitch_state == true) {
+		uswitch_hyst_count++;
+		if (uswitch_hyst_count >= USWITCH_HYST_PRESS) {
+			run = true;
+			last_uswitch_state = uswitch_state;
+			uswitch_hyst_count = 0;
+		}
+	} else if (last_uswitch_state == true && uswitch_state == false) {
+		uswitch_hyst_count++;
+		if (uswitch_hyst_count >= USWITCH_HYST_RELEASE) {
+			run = false;
+			last_uswitch_state = uswitch_state;
+			uswitch_hyst_count = 0;
+		}
 	}
-	
-	num_steps++;
-	
-	// Advance stepper state
-	cur_motor_state ++;
-	if (cur_motor_state >= NUM_MOTOR_STATES)
-		cur_motor_state = 0;
 }
 
-
-void
-motor_setup(void)
-{
-	// Set up pins
-	for (int i = 0; i < 4; i++) {
-		pinMode(MOTOR_PINS[i], OUTPUT);
-		digitalWrite(MOTOR_PINS[i], LOW);
-	}
-	
-	Timer1.initialize(STEP_MICROSECONDS);
-	Timer1.attachInterrupt(on_timer_interrupt);
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // LED Driving
 ////////////////////////////////////////////////////////////////////////////////
 
-// Display buffer (head==tail is empty)
-unsigned char buf[DISPLAY_BUFFER_LENGTH][NUM_VERTICAL_BYTES];
-unsigned int  buf_head=0u;
-unsigned int  buf_tail=0u;
+// The buffer which holds the (null-terminated) message to display
+char str[100] = "Help I'm trapped in an AVR's firmware!  ";
+const unsigned int str_max_len = (sizeof(str)/sizeof(char)) - 1;
 
-// Emergency buffer -- a bitmap to display if no pixels are sent
-static unsigned char emg_buf[][NUM_VERTICAL_BYTES] = {
-#include "error_bitmap.h"
-};
-#define EMG_BUF_LENGTH (sizeof(emg_buf) / sizeof(unsigned char[NUM_VERTICAL_BYTES]))
-static unsigned int emg_buf_cursor = 0u;
+// The character being displayed
+const char *this_char = &(str[0]);
 
+// The pixel column within the current character being displayed
+unsigned int this_col = 0;
 
-// Current pixel width, in pixel fractions (default to square pixels)
-unsigned int cur_pixel_width = PIXEL_FRACTION;
-unsigned int next_pixel_width = PIXEL_FRACTION;
-
-// The amount of the cur_pixel_width (in pixel fractions) the LEDs are on.
-unsigned int cur_pixel_duty = PIXEL_FRACTION;
-unsigned int next_pixel_duty = PIXEL_FRACTION;
+// The pixel column within the next character being displayed
+unsigned int next_col = 0;
 
 
-/**
- * Immediately empty the LED line buffer
- */
-void
-led_buffer_clear()
-{
-	buf_head = buf_tail = 0;
+void reset_display() {
+	this_char = &(str[0]);
+	this_col = 0;
+	next_col = 0;
 }
 
 
 /**
- * Find out if the LED output buffer is empty
+ * Set the next state for the LEDs.
  */
-bool
-is_led_buffer_empty()
-{
-	return buf_head == buf_tail;
-}
-
-
-/**
- * Set the width of the next pixel to be displayed.
- */
-void
-led_set_pixel_width(unsigned int pixel_width)
-{
-	unsigned int old_pixel_width = next_pixel_width;
+void display_next() {
+	// Get the character index in the font (default to space if character is not
+	// available)
+	unsigned int this_index = pgm_read_byte_near(FONT_ASCII_TO_INDEX + this_char[0]);
+	unsigned int next_index = pgm_read_byte_near(FONT_ASCII_TO_INDEX + this_char[1]);
+	if (this_index == 0xFF) this_index = pgm_read_byte_near(FONT_ASCII_TO_INDEX + ' ');
+	if (next_index == 0xFF) next_index = pgm_read_byte_near(FONT_ASCII_TO_INDEX + ' ');
 	
-	next_pixel_width = pixel_width;
-	// Clamp value 
-	if (next_pixel_width <= 0)
-		next_pixel_width = 1u;
+	// Get the start address of the bitmap for this character
+	unsigned int this_bitmap = pgm_read_word_near(FONT_GLYPH_BITMAPS_LOOKUP + this_index);
+	unsigned int next_bitmap = pgm_read_word_near(FONT_GLYPH_BITMAPS_LOOKUP + next_index);
 	
-	// Scale the duty to match the new pixel width
-	led_set_pixel_duty((next_pixel_width*led_get_pixel_duty()) / old_pixel_width);
-}
-
-
-/**
- * Get the width of the next pixel to be displayed.
- */
-unsigned int
-led_get_pixel_width(void)
-{
-	return next_pixel_width;
-}
-
-
-/**
- * Set the duty of the next pixel to be displayed.
- */
-void
-led_set_pixel_duty(unsigned int pixel_duty)
-{
-	next_pixel_duty = pixel_duty;
-	// Clamp value
-	if (next_pixel_duty <= 0)
-		next_pixel_duty = 1u;
-	else if (next_pixel_duty > led_get_pixel_width())
-		next_pixel_duty = led_get_pixel_width();
-}
-
-
-/**
- * Get the duty of the next pixel to be displayed.
- */
-unsigned int
-led_get_pixel_duty(void)
-{
-	return next_pixel_duty;
-}
-
-
-/**
- * Insert an item into the buffer. Returns a pointer to the buffer entry which
- * has been allocated or NULL if the buffer is full.
- */
-unsigned char *
-led_buffer_insert(void)
-{
-	unsigned int old_tail = buf_tail;
-	unsigned int new_tail = (old_tail+1)%DISPLAY_BUFFER_LENGTH;
-	if (new_tail == buf_head) {
-		// The buffer is full
-		return NULL;
-	} else {
-		buf_tail = new_tail;
-		return buf[old_tail];
-	}
-}
-
-
-/**
- * Number of free spaces in the buffer.
- */
-unsigned int
-get_led_buffer_spaces()
-{
-	return (((int)buf_head - (int)buf_tail) + (int)DISPLAY_BUFFER_LENGTH - 1) % (int)DISPLAY_BUFFER_LENGTH;
-}
-
-/**
- * Refresh the LED display if needed
- */
-void
-led_loop() {
-	// Control the duty-cycle of the display
-	digitalWrite(nOE_PIN, !(num_steps < STEPS_PER_PIXEL_FRACTION(cur_pixel_duty)));
+	unsigned int this_width = pgm_read_byte_near(FONT_GLYPH_WIDTH + this_index);
+	unsigned int this_end   = pgm_read_byte_near(FONT_GLYPH_END   + this_index);
+	unsigned int next_start = pgm_read_byte_near(FONT_GLYPH_START + next_index);
 	
-	// Does the display actually need to be refreshed?
-	if (num_steps < STEPS_PER_PIXEL_FRACTION(cur_pixel_width))
-		return;
-	
-	// Only maintain the period if the pixel width hasn't changed
-	if (cur_pixel_width != next_pixel_width)
-		num_steps = 0;
-	else
-		num_steps %= STEPS_PER_PIXEL_FRACTION(cur_pixel_width);
-	
-	// Update the pixel duty and width
-	cur_pixel_width = next_pixel_width;
-	cur_pixel_duty  = next_pixel_duty;
-	
-	// Work out what to display
-	unsigned char *cur_buf;
-	if (buf_head == buf_tail) {
-		// Empty buffer, show emg message
-		cur_buf = &(emg_buf[emg_buf_cursor++][0]);
-		if (emg_buf_cursor >= EMG_BUF_LENGTH)
-			emg_buf_cursor = 0u;
-	} else {
-		// Consume item from buffer
-		cur_buf = &(buf[buf_head++][0]);
-		if (buf_head >= DISPLAY_BUFFER_LENGTH)
-			buf_head = 0u;
+	// Display current the column
+	for (int row_byte = 0; row_byte < PIXELS/8; row_byte++) {
+		// The current character's line
+		unsigned char c = pgm_read_byte_near( FONT_GLYPH_BITMAPS
+		                                    + this_bitmap
+		                                    + (this_col * (PIXELS/8))
+		                                    + row_byte
+		                                    );
 		
-		// Also reset the emergency buffer cursor so the emergency buffer starts
-		// from scratch when it is next used.
-		emg_buf_cursor = 0u;
+		// Overlaid with the next character's overlapping columns
+		if (this_col >= this_end - next_start)
+			c |= pgm_read_byte_near( FONT_GLYPH_BITMAPS
+			                       + next_bitmap
+			                       + (next_col * (PIXELS/8))
+			                       + row_byte
+			                       );
+		SPI.transfer(c);
 	}
 	
-	// Refresh the display
-	for (int i = NUM_VERTICAL_BYTES-1; i>=0; i--)
-		SPI.transfer(cur_buf[i]);
+	// Latch the pixels
 	digitalWrite(LE_PIN, HIGH);
 	digitalWrite(LE_PIN, LOW);
 	
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
-// Command Interface
-////////////////////////////////////////////////////////////////////////////////
-
-
-/**
- * Command interface state-machine states.
- */
-enum cmd_state {
-	// The normal state while not running any particular command.
-	CMD_STATE_IDLE,
+	// Advance through the columns
+	if (this_col >= this_end - next_start)
+		next_col++;
+	this_col++;
 	
-	// Reading in a line of display values from the host
-	CMD_STATE_READ_LINE,
-	
-	// Waiting for the display buffer to become non-full before confirming to the
-	// host that this has occurred.
-	CMD_STATE_WAIT_UNTIL_BUFFER_NOT_FULL,
-	
-	// Waiting for the display buffer to become flushed.
-	CMD_STATE_FLUSH,
-	
-	// Waiting for a register's write data to arrive
-	CMD_STATE_READ_REG_VALUE,
-} cmd_state = CMD_STATE_IDLE;
-
-
-/**
- * The register which will be written in the CMD_STATE_READ_REG_VALUE state.
- */
-reg_t selected_register;
-
-
-unsigned int
-cmd_read_reg(reg_t reg)
-{
-	switch (reg) {
-		case REG_DISPLAY_HEIGHT: return VERTICAL_PIXELS;           break;
-		case REG_DISPLAY_WIDTH:  return HORIZONTAL_PIXELS;         break;
-		case REG_RPM:            return (int)(DISPLAY_RPM*(1<<8)); break;
+	// Move to the next character as required
+	if (this_col >= this_width) {
+		this_char++;
+		this_col = next_col;
+		next_col = 0;
 		
-		case REG_PIXEL_ASPECT_RATIO:
-			// Convert to fixed point 8.8
-			return (led_get_pixel_width()<<8) / PIXEL_FRACTION;
-		
-		case REG_PIXEL_DUTY:
-			// Convert to fixed point 8.8
-			return (led_get_pixel_duty()<<8) / led_get_pixel_width();
-		
-		case REG_BUFFER_SIZE:
-			return (DISPLAY_BUFFER_LENGTH-1)<<16 | get_led_buffer_spaces();
-		
-		default:
-			// Return 0xDEAD for nonexistant registers
-			return 0xDEADu;
-	}
-}
-
-void
-cmd_write_reg(reg_t reg, unsigned int value)
-{
-	switch (reg) {
-		// Read-only registers
-		default:
-		case REG_DISPLAY_HEIGHT:
-		case REG_DISPLAY_WIDTH:
-		case REG_RPM:
-		case REG_BUFFER_SIZE:
-			break;
-		
-		case REG_PIXEL_ASPECT_RATIO:
-			// Convert from fixed point 8.8
-			led_set_pixel_width((PIXEL_FRACTION * value)>>8);
-			break;
-		
-		case REG_PIXEL_DUTY:
-			// Find number of pixel fractions in 8.8 and then convert to integer.
-			led_set_pixel_duty((value * led_get_pixel_width())>>8);
-			break;
+		// Wrap-around to the start of the string again
+		if (this_char[0] == '\0') {
+			this_char = &(str[0]);
+			this_col = 0;
+		}
 	}
 }
 
 
-/**
- * Execute one iteration of the command evaluating state machine. This should be
- * interleaved with the LED driving state machine for propper operation.
- */
-void
-cmd_loop(void)
-{
-	switch (cmd_state) {
-		case CMD_STATE_IDLE:
-			// Try and read a command
-			if (Serial.available()) {
-				unsigned char cmd      = Serial.read();
-				opcode_t opcode        = (opcode_t)(cmd & CMD_OPCODE_MASK);
-				unsigned int immediate = cmd & CMD_IMMEDIATE_MASK;
-				
-				switch (opcode) {
-					// Unrecognised commands are ignored
-					default:
-					case OPCODE_NO_OPERATION:
-						return;
-					
-					case OPCODE_PUSH_LINE:
-						cmd_state = CMD_STATE_READ_LINE;
-						break;
-					
-					case OPCODE_FLUSH_BUFFER:
-						cmd_state = CMD_STATE_FLUSH;
-						break;
-					
-					case OPCODE_CLEAR_BUFFER:
-						led_buffer_clear();
-						break;
-					
-					case OPCODE_REG_READ:
-						{
-							unsigned int reg_value = cmd_read_reg((reg_t)immediate);
-							Serial.write((unsigned char)(reg_value>>8u));
-							Serial.write((unsigned char)(reg_value&0xFFu));
-						}
-						break;
-					
-					case OPCODE_REG_WRITE:
-						cmd_state = CMD_STATE_READ_REG_VALUE;
-						selected_register = (reg_t)immediate;
-						break;
-					
-					case OPCODE_PING:
-						Serial.write((unsigned char)(PROTOCOL_VERSION<<4u | ((unsigned char)immediate)));
-						break;
-				}
-			}
-			break;
-		
-		case CMD_STATE_READ_LINE:
-			// Wait for a full line of input to arrive for the display
-			if (Serial.available() >= NUM_VERTICAL_BYTES) {
-				// Place the pixels in the buffer
-				unsigned char *buffer = led_buffer_insert();
-				if (buffer == NULL) {
-					// Discard the data, for some reason we tried to over-fill the buffer
-					for (int i = 0; i < NUM_VERTICAL_BYTES; i++)
-						Serial.read();
-				} else {
-					for (int i = 0; i < NUM_VERTICAL_BYTES; i++)
-						buffer[i] = Serial.read();
-				}
-				// Potentially block until the buffer has more space
-				cmd_state = CMD_STATE_WAIT_UNTIL_BUFFER_NOT_FULL;
-			}
-			break;
-		
-		case CMD_STATE_WAIT_UNTIL_BUFFER_NOT_FULL:
-			{
-				// Allow the host to un-block the system by sending another command
-				if (Serial.available()) {
-					cmd_state = CMD_STATE_IDLE;
-					break;
-				}
-				
-				// Block until there are free spaces in the output buffer
-				unsigned int free_spaces = get_led_buffer_spaces();
-				if (free_spaces) {
-					Serial.write(free_spaces);
-					cmd_state = CMD_STATE_IDLE;
-				}
-			}
-			break;
-		
-		case CMD_STATE_FLUSH:
-			// Allow the host to un-block the system by sending another command
-			if (Serial.available()) {
-				cmd_state = CMD_STATE_IDLE;
-				break;
-			}
-			
-			// Block until the buffer is empty
-			if (is_led_buffer_empty()) {
-				Serial.write(0xFF);
-				cmd_state = CMD_STATE_IDLE;
-			}
-			break;
-		
-		case CMD_STATE_READ_REG_VALUE:
-			if (Serial.available() >= 2) {
-				// Read the new value
-				unsigned int value = Serial.read();
-				value = (value<<8u) | Serial.read();
-				
-				// Write to the register
-				cmd_write_reg(selected_register, value);
-				cmd_state = CMD_STATE_IDLE;
-			}
-			break;
-		
-		default:
-			cmd_state = CMD_STATE_IDLE;
-	}
-}
-
 
 ////////////////////////////////////////////////////////////////////////////////
-// Main program
+// Main loop
 ////////////////////////////////////////////////////////////////////////////////
 
 
@@ -448,17 +234,43 @@ void setup() {
 	SPI.setClockDivider(SPI_CLOCK_DIV16); // 16MHz/16 = 1MHz
 	SPI.setDataMode(SPI_MODE0); // Posedge sensitive, Clock Idle Low
 	
-	motor_setup();
+	// Setup LED pins
+	pinMode(LE_PIN, OUTPUT);  digitalWrite(LE_PIN, LOW);
+	pinMode(nOE_PIN, OUTPUT); digitalWrite(nOE_PIN, LOW);
 	
-	pinMode(LE_PIN, OUTPUT);
-	pinMode(nOE_PIN, OUTPUT);
+	// Setup contact uSwitch pin with pull-up
+	pinMode(USWITCH_PIN, INPUT);
+	digitalWrite(USWITCH_PIN, HIGH);
 	
-	digitalWrite(LE_PIN, LOW);
-	digitalWrite(nOE_PIN, LOW);
+	// Setup optical clock LED pin (unused)
+	pinMode(OCLK_LED_PIN, OUTPUT); digitalWrite(OCLK_LED_PIN, LOW);
+	
+	// Poll the uSwitch
+	Timer1.initialize(INPUT_POLL_MICROSECONDS);
+	Timer1.attachInterrupt(poll_uswitch);
 }
 
-
 void loop() {
-	led_loop();
-	cmd_loop();
+	if (Serial.available()) {
+		// Get the current string and pad with spaces and a null terminator.
+		unsigned int num_chars = Serial.readBytesUntil('\n', str, str_max_len-2);
+		str[num_chars+1] = ' ';
+		str[num_chars+2] = ' ';
+		str[num_chars+3] = '\0';
+		
+		Serial.println("OK");
+	}
+	
+	int loop_interval = (int)(analogRead(SPEED_POT_PIN) * PIXEL_SPEED_SCALING_FACTOR);
+	delay(loop_interval);
+	
+	if (run) {
+		// Display the message
+		digitalWrite(nOE_PIN, false);
+		display_next();
+	} else {
+		// Turn off the display & reset the message
+		digitalWrite(nOE_PIN, true);
+		reset_display();
+	}
 }
