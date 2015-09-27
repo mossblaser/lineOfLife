@@ -195,7 +195,7 @@ if __name__ == "__main__":
 	out += "uint16_t %sNUM_CHARS = %d;\n"%(prefix, len(CHARS))
 	
 	# Generate lookup table from ASCII to char number
-	out += "PROGMEM prog_uchar %sASCII_TO_INDEX[] = {\n"%(prefix, )
+	out += "PROGMEM const unsigned char %sASCII_TO_INDEX[] = {\n"%(prefix, )
 	for i in range(128):
 		out += "\t0x%02X, // '%s'\n"%(
 			CHARS.find(chr(i)) & 0xFF,
@@ -204,13 +204,13 @@ if __name__ == "__main__":
 	out = out.rstrip() + "\n};\n"
 	
 	# Generate character bitmap array
-	out += "PROGMEM prog_uchar %sGLYPH_BITMAPS[] = {\n"%(prefix, )
+	out += "PROGMEM const unsigned char %sGLYPH_BITMAPS[] = {\n"%(prefix, )
 	for c in CHARS:
 		out += bytes_to_array_body(glyph_data[c], height)
 	out = out.rstrip() + "\n};\n"
 	
 	# Generate character bitmap array lookup table
-	out += "PROGMEM prog_uint16_t %sGLYPH_BITMAPS_LOOKUP[] = {\n"%(prefix, )
+	out += "PROGMEM const uint16_t %sGLYPH_BITMAPS_LOOKUP[] = {\n"%(prefix, )
 	cur_offset = 0
 	for c in CHARS:
 		out += "\t%d, // '%s'\n"%(cur_offset, c)
@@ -218,15 +218,15 @@ if __name__ == "__main__":
 	out = out.rstrip() + "\n};\n"
 	
 	# Generate character width/start/end lookup tables
-	out += "PROGMEM prog_uchar %sGLYPH_WIDTH[] = {\n"%(prefix, )
+	out += "PROGMEM const unsigned char %sGLYPH_WIDTH[] = {\n"%(prefix, )
 	for c in CHARS:
 		out += "\t%2d, // '%s'\n"%(glyph_dimensions[c][0], c)
 	out = out.rstrip() + "\n};\n"
-	out += "PROGMEM prog_uchar %sGLYPH_START[] = {\n"%(prefix, )
+	out += "PROGMEM const unsigned char %sGLYPH_START[] = {\n"%(prefix, )
 	for c in CHARS:
 		out += "\t%2d, // '%s'\n"%(glyph_dimensions[c][1], c)
 	out = out.rstrip() + "\n};\n"
-	out += "PROGMEM prog_uchar %sGLYPH_END[] = {\n"%(prefix, )
+	out += "PROGMEM const unsigned char %sGLYPH_END[] = {\n"%(prefix, )
 	for c in CHARS:
 		out += "\t%2d, // '%s'\n"%(glyph_dimensions[c][2], c)
 	out = out.rstrip() + "\n};\n"
