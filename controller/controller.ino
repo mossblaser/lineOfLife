@@ -57,6 +57,184 @@ motor_setup(void)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Automata rendering (for when the host is not sending anything...)
+////////////////////////////////////////////////////////////////////////////////
+
+#ifdef SHOW_AUTOMATA
+
+// The bitmap of the text to display before showing each rule is displayed
+static unsigned char presenting_msg[][NUM_VERTICAL_BYTES] = {
+#include "presenting_bitmap.h"
+};
+#define PRESENTING_MSG_LENGTH (sizeof(presenting_msg) / sizeof(unsigned char[NUM_VERTICAL_BYTES]))
+
+// The bitmaps of the numbers
+static unsigned char numbers[10][PRESENTING_MSG_LENGTH] = {
+#include "number_bitmaps.h"
+};
+
+typedef enum {
+	// Pick a rule to demonstrate and output a blank line to seperate off the
+	// previous image.
+	AUTOMATA_MODE_PICK_RULE,
+	
+	// Output some text stating which rule is about to be shown
+	AUTOMATA_MODE_TEXT,
+	
+	// Generate and display an initial state for the automaton
+	AUTOMATA_MODE_INITIAL_STATE,
+	
+	// Run the cellular automaton and output the current state (for a while).
+	AUTOMATA_MODE_RUN,
+} automata_mode_t;
+
+/**
+ * Returns a pointer to a line of display graphics to show which (over time)
+ * illustrates the operation of a 1D cellular automata. Call once per line.
+ */
+unsigned char *get_automata_frame() {
+	static automata_mode_t mode = AUTOMATA_MODE_PICK_RULE;
+	
+	// The current rule to use
+	static int rule = 0;
+	
+	// The current frame number for this automaton
+	static int frame = AUTOMATA_FRAMES;
+	
+	// Buffers holding the current state and a second buffer to write the new
+	// state into. Flipped after each update. Though in principle only one buffer
+	// is needed, having two a: simplifies life a little but mostly b: means we
+	// can check if the automata actually does anything!
+	static unsigned char buf_a[NUM_VERTICAL_BYTES] = {1};
+	static unsigned char buf_b[NUM_VERTICAL_BYTES] = {1};
+	static unsigned char *cur_state = buf_a;
+	static unsigned char *next_state = buf_b;
+	
+	switch (mode) {
+		
+		case AUTOMATA_MODE_PICK_RULE:
+			// Pick a new rule. With a 75% chance, pick a known good one
+			if (random(4) == 0) {
+				rule = random(0x00, 0xFF + 1);
+			} else {
+				int good_rules[] = AUTOMATA_KNOWN_GOOD_RULES;
+				rule = good_rules[random(sizeof(good_rules) / sizeof(good_rules[0]))];
+			}
+			
+			mode = AUTOMATA_MODE_TEXT;
+			frame = 0;
+			
+			// Display a blank line
+			for (int byte_num = 0; byte_num < NUM_VERTICAL_BYTES; byte_num++)
+				cur_state[byte_num] = 0;
+			return cur_state;
+		
+		case AUTOMATA_MODE_TEXT:
+			// The fixed text
+			for (int byte_num = 0; byte_num < NUM_VERTICAL_BYTES; byte_num++)
+				cur_state[byte_num] = presenting_msg[frame][byte_num];
+			
+			// Add the rule number to the text
+			{
+				int offset = NUM_VERTICAL_BYTES - 3;
+				int hundreds = rule / 100;
+				int tens = (rule - (hundreds * 100)) / 10;
+				int units = rule - (hundreds * 100) - (tens * 10);
+				if (hundreds)
+					cur_state[offset++] = numbers[hundreds][frame];
+				if (hundreds || tens)
+					cur_state[offset++] = numbers[tens][frame];
+				cur_state[offset++] = numbers[units][frame];
+			}
+			
+			frame++;
+			if (frame >= PRESENTING_MSG_LENGTH) {
+				mode = AUTOMATA_MODE_INITIAL_STATE;
+				frame = 0;
+			}
+			
+			return cur_state;
+		
+		case AUTOMATA_MODE_INITIAL_STATE:
+			// Chose a starting state (either random or a single pixel)
+			if (random(2) == 0) {
+				// Random
+				for (int byte_num = 0; byte_num < NUM_VERTICAL_BYTES; byte_num++)
+					cur_state[byte_num] = random(0x00, 0xFF + 1);
+			} else {
+				// Single pixel
+				for (int byte_num = 0; byte_num < NUM_VERTICAL_BYTES; byte_num++)
+					cur_state[byte_num] = 0;
+				cur_state[NUM_VERTICAL_BYTES / 2] = 1<<4;
+			}
+			
+			mode = AUTOMATA_MODE_RUN;
+			frame = 0;
+			
+			return cur_state;
+		
+		case AUTOMATA_MODE_RUN:
+			// Compute next automata state
+			for (int bit_num = 0; bit_num < VERTICAL_PIXELS; bit_num++) {
+				int cur_byte_num =  bit_num / 8;
+				int cur_bit_index = bit_num % 8;
+				int prev_byte_num =  (bit_num-1) / 8;
+				int prev_bit_index = (bit_num-1) % 8;
+				int next_byte_num =  (bit_num+1) / 8;
+				int next_bit_index = (bit_num+1) % 8;
+				
+				unsigned char cur_byte = cur_state[cur_byte_num];
+				unsigned char prev_byte = (prev_byte_num >= 0 &&
+				                           prev_byte_num < NUM_VERTICAL_BYTES)
+				                          ? cur_state[prev_byte_num]
+				                          : 0;
+				unsigned char next_byte = (next_byte_num >= 0 &&
+				                           next_byte_num < NUM_VERTICAL_BYTES)
+				                          ? cur_state[next_byte_num]
+				                          : 0;
+				
+				bool cur_bit = (cur_byte >> cur_bit_index) & 1;
+				bool prev_bit = (prev_byte >> prev_bit_index) & 1;
+				bool next_bit = (next_byte >> next_bit_index) & 1;
+				
+				next_state[cur_byte_num] = (next_state[cur_byte_num] & ~(1<<cur_bit_index))
+				                           | (((rule >> ((prev_bit << 0) +
+				                                         (cur_bit  << 1) +
+				                                         (next_bit << 2))) & 1) << cur_bit_index);
+			}
+			
+			// Flip the two buffers
+			{
+				unsigned char *tmp = cur_state;
+				cur_state = next_state;
+				next_state = tmp;
+			}
+			
+			// If the state hasn't meaningfully changed or we've run for long enough,
+			// move on to the next state
+			{
+				frame++;
+				
+				bool changed = false;
+				for (int byte_num = 0; byte_num < NUM_VERTICAL_BYTES; byte_num++)
+					changed |= cur_state[byte_num] != next_state[byte_num];
+				
+				if ((frame > AUTOMATA_MIN_FRAMES && !changed) ||
+				    frame >= AUTOMATA_FRAMES)
+					mode = AUTOMATA_MODE_PICK_RULE;
+			}
+			
+			return cur_state;
+		
+		default:
+			mode = AUTOMATA_MODE_PICK_RULE;
+			return cur_state;
+	}
+}
+
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
 // LED Driving
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -66,11 +244,13 @@ unsigned int  buf_head=0u;
 unsigned int  buf_tail=0u;
 
 // Emergency buffer -- a bitmap to display if no pixels are sent
+#ifndef SHOW_AUTOMATA
 static unsigned char emg_buf[][NUM_VERTICAL_BYTES] = {
 #include "error_bitmap.h"
 };
 #define EMG_BUF_LENGTH (sizeof(emg_buf) / sizeof(unsigned char[NUM_VERTICAL_BYTES]))
 static unsigned int emg_buf_cursor = 0u;
+#endif
 
 
 // Current pixel width, in pixel fractions (default to square pixels)
@@ -208,10 +388,15 @@ led_loop() {
 	// Work out what to display
 	unsigned char *cur_buf;
 	if (buf_head == buf_tail) {
-		// Empty buffer, show emg message
+#ifdef SHOW_AUTOMATA
+		// Empty buffer, run the automata demo
+		cur_buf = get_automata_frame();
+#else
+		// Empty buffer, show 'emergency' message
 		cur_buf = &(emg_buf[emg_buf_cursor++][0]);
 		if (emg_buf_cursor >= EMG_BUF_LENGTH)
 			emg_buf_cursor = 0u;
+#endif
 	} else {
 		// Consume item from buffer
 		cur_buf = &(buf[buf_head++][0]);
@@ -441,6 +626,8 @@ cmd_loop(void)
 
 
 void setup() {
+	randomSeed(analogRead(5));
+	
 	Serial.begin(BAUD_RATE);
 	
 	SPI.begin();

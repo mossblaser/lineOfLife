@@ -40,6 +40,24 @@ static const int MOTOR_PINS[4] = {A0,A1,A2,A3};
 
 
 ////////////////////////////////////////////////////////////////////////////////
+// Options for the default cellular automata display
+////////////////////////////////////////////////////////////////////////////////
+
+// If defined, show a cellular automata demo when nothing has been received
+// over serial. If not defined, a logo/error message is shown on the screen.
+#define SHOW_AUTOMATA
+
+// The number of frames to display a particular automataon for if it does not
+// get stuck at a fix point
+#define AUTOMATA_FRAMES (HORIZONTAL_PIXELS / 4)
+
+// The minimum number of frames to show for a rule, even if it isn't changing
+#define AUTOMATA_MIN_FRAMES 8
+
+// A set of known-good rules
+#define AUTOMATA_KNOWN_GOOD_RULES {18, 22, 26, 30, 45, 54, 57, 60, 90, 106, 110, 122, 126, 146, 150, 154, 184}
+
+////////////////////////////////////////////////////////////////////////////////
 // Utilitiy macros
 ////////////////////////////////////////////////////////////////////////////////
 
